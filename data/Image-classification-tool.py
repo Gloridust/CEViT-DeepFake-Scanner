@@ -1,29 +1,28 @@
 import os
 import shutil
 
-# 定义目录和文件路径变量，可以根据需要轻松更改
-trainset_folder = './trainset'
+# 可轻松更改的目录和文件路径变量
+trainset_dir = './trainset'
 label_file = 'trainset_label.txt'
+
+# 创建结果目录
+result_dir = './trainset_result'
+fake_dir = os.path.join(result_dir, 'fake')
+real_dir = os.path.join(result_dir, 'real')
+os.makedirs(result_dir, exist_ok=True)
+os.makedirs(fake_dir, exist_ok=True)
+os.makedirs(real_dir, exist_ok=True)
 
 # 读取标签文件
 with open(label_file, 'r') as f:
     lines = f.readlines()[1:]  # 跳过标题行
 
-# 遍历每一行标签数据
 for line in lines:
-    parts = line.strip().split(',')
-    img_name = parts[0]
-    target = int(parts[1])
-    src_path = os.path.join(trainset_folder, img_name)
-    if target == 1:
-        dst_folder = './fake/'
-        if not os.path.exists(dst_folder):
-            os.makedirs(dst_folder)
-        dst_path = os.path.join(dst_folder, img_name)
-        shutil.move(src_path, dst_path)
-    elif target == 0:
-        dst_folder = './real/'
-        if not os.path.exists(dst_folder):
-            os.makedirs(dst_folder)
-        dst_path = os.path.join(dst_folder, img_name)
-        shutil.move(src_path, dst_path)
+    img_name, target = line.strip().split(',')
+    src_img_path = os.path.join(trainset_dir, img_name)
+    if target == '1':
+        dst_img_path = os.path.join(fake_dir, img_name)
+    else:
+        dst_img_path = os.path.join(real_dir, img_name)
+    if os.path.exists(src_img_path):
+        shutil.move(src_img_path, dst_img_path)
