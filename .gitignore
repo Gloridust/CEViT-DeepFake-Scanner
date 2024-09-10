@@ -159,7 +159,8 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 article.md
-/data/*.jpg
+*.jpg
 /data/*.png
-/data/*.txt
+*.txt
 .DS_Store
+.vscode
