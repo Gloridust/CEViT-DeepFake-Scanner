@@ -59,7 +59,8 @@ def visualize_attention(model, image, device):
 def main():
     # 设置超参数
     batch_size = 32
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # N卡
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu") # Apple
 
     # 数据预处理
     transform = transforms.Compose([
