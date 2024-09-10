@@ -162,3 +162,4 @@ article.md
 /data/*.jpg
 /data/*.png
 /data/*.txt
+.DS_Store
