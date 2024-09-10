@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange, repeat
+from collections import OrderedDict
 
 class PatchEmbed(nn.Module):
     """将图像分割成patches并进行线性嵌入"""
