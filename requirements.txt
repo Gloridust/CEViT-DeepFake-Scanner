@@ -8,3 +8,4 @@ seaborn
 pillow
 tqdm
 einops
+timm
