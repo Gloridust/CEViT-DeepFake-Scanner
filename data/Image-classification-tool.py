@@ -2,10 +2,10 @@ import os
 import shutil
 
 # 可轻松更改的目录和文件路径
-trainset_folder = './trainset'
-label_file = 'trainset_label.txt'
+trainset_folder = './trainset/'
+label_file = './trainset_label.txt'
 
-result_folder = './result/trainset'
+result_folder = './result/trainset/'
 fake_folder = os.path.join(result_folder, 'fake')
 real_folder = os.path.join(result_folder, 'real')
 
