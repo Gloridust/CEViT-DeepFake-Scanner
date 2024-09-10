@@ -71,9 +71,9 @@ def main():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-    # 加载数据集（这里假设使用自定义数据集，需要根据实际情况修改）
-    train_dataset = datasets.ImageFolder(root='path/to/train/dataset', transform=transform)
-    val_dataset = datasets.ImageFolder(root='path/to/val/dataset', transform=transform)
+    # 加载数据集
+    train_dataset = datasets.ImageFolder(root='data/train', transform=transform)
+    val_dataset = datasets.ImageFolder(root='data/val', transform=transform)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
