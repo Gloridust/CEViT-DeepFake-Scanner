@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
+import torch.nn.functional as F
 
 class ImageProcessingModule(nn.Module):
     """特殊图像处理模块"""
