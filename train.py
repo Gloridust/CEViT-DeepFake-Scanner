@@ -10,6 +10,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 import time
+import torch_directml # directml
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
