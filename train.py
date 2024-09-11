@@ -8,14 +8,19 @@ from torchvision import transforms, datasets
 from vit_df_scanner import ViTDFScanner
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
+from tqdm import tqdm
+import time
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     total_loss = 0
     all_preds = []
     all_labels = []
-
-    for batch_idx, (data, target) in enumerate(dataloader):
+    
+    # 使用tqdm创建进度条
+    progress_bar = tqdm(dataloader, desc="Training", leave=False)
+    
+    for batch_idx, (data, target) in enumerate(progress_bar):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
@@ -27,6 +32,9 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
         _, predicted = torch.max(output.data, 1)
         all_preds.extend(predicted.cpu().numpy())
         all_labels.extend(target.cpu().numpy())
+        
+        # 更新进度条描述
+        progress_bar.set_description(f"Training - Loss: {loss.item():.4f}")
 
     avg_loss = total_loss / len(dataloader)
     accuracy = accuracy_score(all_labels, all_preds)
@@ -40,8 +48,11 @@ def validate(model, dataloader, criterion, device):
     all_preds = []
     all_labels = []
 
+    # 使用tqdm创建进度条
+    progress_bar = tqdm(dataloader, desc="Validating", leave=False)
+
     with torch.no_grad():
-        for data, target in dataloader:
+        for data, target in progress_bar:
             data, target = data.to(device), target.to(device)
             output = model(data)
             loss = criterion(output, target)
@@ -50,6 +61,9 @@ def validate(model, dataloader, criterion, device):
             _, predicted = torch.max(output.data, 1)
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(target.cpu().numpy())
+            
+            # 更新进度条描述
+            progress_bar.set_description(f"Validating - Loss: {loss.item():.4f}")
 
     avg_loss = total_loss / len(dataloader)
     accuracy = accuracy_score(all_labels, all_preds)
@@ -62,8 +76,7 @@ def main():
     batch_size = 32
     num_epochs = 50
     learning_rate = 1e-4
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # N卡
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu") # Apple
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
     # 数据预处理
     transform = transforms.Compose([
@@ -90,18 +103,29 @@ def main():
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
 
     # 训练循环
+    start_time = time.time()
     for epoch in range(num_epochs):
+        epoch_start_time = time.time()
+        
+        print(f"\nEpoch {epoch+1}/{num_epochs}")
+        print("-" * 20)
+        
         train_loss, train_acc, train_f1 = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc, val_f1 = validate(model, val_loader, criterion, device)
         
         scheduler.step()
-
-        print(f"Epoch {epoch+1}/{num_epochs}")
+        
+        epoch_time = time.time() - epoch_start_time
+        total_time = time.time() - start_time
+        
         print(f"Train Loss: {train_loss:.4f}, Accuracy: {train_acc:.4f}, F1: {train_f1:.4f}")
         print(f"Val Loss: {val_loss:.4f}, Accuracy: {val_acc:.4f}, F1: {val_f1:.4f}")
+        print(f"Epoch Time: {epoch_time:.2f}s, Total Time: {total_time:.2f}s")
+        print(f"Progress: {(epoch+1)/num_epochs*100:.2f}%")
 
     # 保存模型
     torch.save(model.state_dict(), 'vit_df_scanner.pth')
+    print("Training completed. Model saved as 'vit_df_scanner.pth'")
 
 if __name__ == "__main__":
     main()
