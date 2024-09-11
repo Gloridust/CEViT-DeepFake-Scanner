@@ -59,10 +59,9 @@ class ImageProcessingModule(nn.Module):
         return torch.cat([x_adjusted, x_srm], dim=1)
 
 class ClassificationHead(nn.Module):
-    """分类头部"""
     def __init__(self, in_features, hidden_features, num_classes=2, dropout=0.1):
         super().__init__()
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.global_pool = nn.AdaptiveAvgPool1d(1)
         self.fc1 = nn.Linear(in_features, hidden_features)
         self.dropout = nn.Dropout(dropout)
         self.fc2 = nn.Linear(hidden_features, num_classes)
@@ -74,8 +73,9 @@ class ClassificationHead(nn.Module):
         返回:
             分类结果, 形状为 (batch_size, num_classes)
         """
-        x = self.global_pool(x).flatten(1)
-        x = F.relu(self.fc1(x))
+        x = x[:, 0]  # Use only the [CLS] token
+        x = self.fc1(x)
+        x = F.relu(x)
         x = self.dropout(x)
         x = self.fc2(x)
         return x
