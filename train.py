@@ -1,5 +1,3 @@
-# train.py
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,9 +10,30 @@ from tqdm import tqdm
 import time
 import argparse
 import os
+import signal
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
+
+# 全局变量用于触发手动保存
+save_flag = False
+
+def signal_handler(signum, frame):
+    global save_flag
+    save_flag = True
+    print("\nManual save triggered. Saving now...")
+
+signal.signal(signal.SIGINT, signal_handler)
+
+def safe_to_numpy(tensor):
+    if hasattr(tensor, 'cpu'):
+        tensor = tensor.cpu()
+    if hasattr(tensor, 'detach'):
+        tensor = tensor.detach()
+    try:
+        return np.array(tensor)
+    except TypeError:
+        return np.array(tensor.tolist())
 
 def custom_optimizer_step(optimizer, model):
     with torch.no_grad():
@@ -35,7 +54,6 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device, accumulatio
         output = model(data)
         loss = criterion(output, target)
         
-        # Normalize the loss to account for accumulation steps
         loss = loss / accumulation_steps
         loss.backward()
 
@@ -45,10 +63,15 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device, accumulatio
 
         total_loss += loss.item() * accumulation_steps
         _, predicted = torch.max(output.data, 1)
-        all_preds.extend(predicted.cpu().numpy())
-        all_labels.extend(target.cpu().numpy())
+        all_preds.extend(safe_to_numpy(predicted))
+        all_labels.extend(safe_to_numpy(target))
         
         progress_bar.set_description(f"Training - Loss: {loss.item():.4f}")
+
+        # 检查是否需要手动保存
+        if save_flag:
+            print("\nSaving checkpoint due to manual interruption...")
+            return total_loss, all_preds, all_labels  # 提前返回以触发保存
 
     avg_loss = total_loss / len(dataloader)
     accuracy = accuracy_score(all_labels, all_preds)
@@ -62,7 +85,6 @@ def validate(model, dataloader, criterion, device):
     all_preds = []
     all_labels = []
     
-   # 使用tqdm创建进度条
     progress_bar = tqdm(dataloader, desc="Validating", leave=False)
 
     with torch.no_grad():
@@ -73,10 +95,9 @@ def validate(model, dataloader, criterion, device):
 
             total_loss += loss.item()
             _, predicted = torch.max(output.data, 1)
-            all_preds.extend(predicted.cpu().numpy())
-            all_labels.extend(target.cpu().numpy())
+            all_preds.extend(safe_to_numpy(predicted))
+            all_labels.extend(safe_to_numpy(target))
             
-            # 更新进度条描述
             progress_bar.set_description(f"Validating - Loss: {loss.item():.4f}")
 
     avg_loss = total_loss / len(dataloader)
@@ -88,7 +109,7 @@ def validate(model, dataloader, criterion, device):
 def get_device(platform, allow_virtual_memory=False):
     if platform == 'cuda' and torch.cuda.is_available():
         if allow_virtual_memory:
-            torch.cuda.set_per_process_memory_fraction(1.0, 0)  # 允许使用所有可用内存
+            torch.cuda.set_per_process_memory_fraction(1.0, 0)
         return torch.device("cuda")
     elif platform == 'mps' and torch.backends.mps.is_available():
         return torch.device("mps")
@@ -96,67 +117,72 @@ def get_device(platform, allow_virtual_memory=False):
         import torch_directml
         if allow_virtual_memory:
             os.environ['PYTORCH_DIRECTML_ALLOW_SYSTEM_FALLBACK'] = '1'
-        return torch_directml.device(torch_directml.default_device())
+        device = torch_directml.device(torch_directml.default_device())
+        torch.set_default_tensor_type(torch.FloatTensor)
+        return device
     else:
         return torch.device("cpu")
 
 def save_checkpoint(model, optimizer, scheduler, epoch, train_loss, val_loss, filename):
-    torch.save({
-        'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'scheduler_state_dict': scheduler.state_dict(),
-        'train_loss': train_loss,
-        'val_loss': val_loss,
-    }, filename)
+    try:
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+            'train_loss': train_loss,
+            'val_loss': val_loss,
+        }, filename)
+        print(f"Checkpoint saved successfully: {filename}")
+    except Exception as e:
+        print(f"Error saving checkpoint: {e}")
 
 def load_checkpoint(model, optimizer, scheduler, filename):
-    checkpoint = torch.load(filename)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-    return checkpoint['epoch'], checkpoint['train_loss'], checkpoint['val_loss']
+    try:
+        checkpoint = torch.load(filename)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        return checkpoint['epoch'], checkpoint['train_loss'], checkpoint['val_loss']
+    except Exception as e:
+        print(f"Error loading checkpoint: {e}")
+        return 0, 0, 0
 
 def main(args):
-    # 设置超参数
-    batch_size = 16  # 减小批量大小
+    global save_flag
+    batch_size = 16
     num_epochs = 50
-    learning_rate = 1e-3  # 为 SGD 调整学习率
+    learning_rate = 1e-4
+    accumulation_steps = 4
+    save_interval = 600  # 每10分钟保存一次
     
     device = get_device(args.platform, args.allow_virtual_memory)
     print(f"Using device: {device}")
 
-    # 数据预处理
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-    # 加载数据集
     train_dataset = datasets.ImageFolder(root='data/train', transform=transform)
     val_dataset = datasets.ImageFolder(root='data/val', transform=transform)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
-    # 初始化模型
     model = ViTDFScanner().to(device)
 
-    # 定义损失函数和优化器
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)  # 使用 SGD 代替 AdamW
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
-    # 学习率调度器
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)  # 使用 StepLR 代替 CosineAnnealingLR
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
 
-    # 如果指定了恢复训练，则加载检查点
     start_epoch = 0
     if args.resume:
         start_epoch, train_loss, val_loss = load_checkpoint(model, optimizer, scheduler, args.resume)
         print(f"Resuming from epoch {start_epoch+1}")
 
-    # 训练循环
     start_time = time.time()
     last_save_time = start_time
     for epoch in range(start_epoch, num_epochs):
@@ -165,7 +191,11 @@ def main(args):
         print(f"\nEpoch {epoch+1}/{num_epochs}")
         print("-" * 20)
         
-        train_loss, train_acc, train_f1 = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        train_loss, train_acc, train_f1 = train_one_epoch(model, train_loader, criterion, optimizer, device, accumulation_steps)
+        if save_flag:
+            save_checkpoint(model, optimizer, scheduler, epoch, train_loss, None, f'manual_save_epoch_{epoch+1}.pth')
+            break  # 退出训练循环
+        
         val_loss, val_acc, val_f1 = validate(model, val_loader, criterion, device)
         
         scheduler.step()
@@ -178,21 +208,17 @@ def main(args):
         print(f"Epoch Time: {epoch_time:.2f}s, Total Time: {total_time:.2f}s")
         print(f"Progress: {(epoch+1)/num_epochs*100:.2f}%")
 
-        # 每10分钟保存一次检查点
-        if time.time() - last_save_time > 600:  # 600 seconds = 10 minutes
+        # 自动保存逻辑
+        if time.time() - last_save_time > save_interval:
             save_checkpoint(model, optimizer, scheduler, epoch, train_loss, val_loss, f'checkpoint_epoch_{epoch+1}.pth')
             last_save_time = time.time()
-            print(f"Checkpoint saved at epoch {epoch+1}")
-
-        # 检查是否需要手动保存
-        if args.save_now:
-            save_checkpoint(model, optimizer, scheduler, epoch, train_loss, val_loss, 'manual_save.pth')
-            print("Manual save completed")
-            args.save_now = False  # 重置标志
 
     # 保存最终模型
-    torch.save(model.state_dict(), 'vit_df_scanner_final.pth')
-    print("Training completed. Final model saved as 'vit_df_scanner_final.pth'")
+    try:
+        torch.save(model.state_dict(), 'vit_df_scanner_final.pth')
+        print("Training completed. Final model saved as 'vit_df_scanner_final.pth'")
+    except Exception as e:
+        print(f"Error saving final model: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train the ViT-DF-Scanner model.")
@@ -202,7 +228,5 @@ if __name__ == "__main__":
                         help='Allow the use of virtual memory (system RAM) for GPU computations')
     parser.add_argument('--resume', type=str, default=None,
                         help='Path to checkpoint file for resuming training')
-    parser.add_argument('--save_now', action='store_true',
-                        help='Manually save a checkpoint during the next iteration')
     args = parser.parse_args()
     main(args)

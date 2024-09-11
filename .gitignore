@@ -164,3 +164,4 @@ article.md
 *.txt
 .DS_Store
 .vscode
+*.pth
