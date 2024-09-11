@@ -12,32 +12,42 @@ from tqdm import tqdm
 import time
 import argparse
 import os
+
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
-                        
-def train_one_epoch(model, dataloader, criterion, optimizer, device):
+
+def custom_optimizer_step(optimizer, model):
+    with torch.no_grad():
+        for param in model.parameters():
+            if param.grad is not None:
+                param.sub_(param.grad * optimizer.param_groups[0]['lr'])
+
+def train_one_epoch(model, dataloader, criterion, optimizer, device, accumulation_steps=4):
     model.train()
     total_loss = 0
     all_preds = []
     all_labels = []
     
-    # 使用tqdm创建进度条
     progress_bar = tqdm(dataloader, desc="Training", leave=False)
     
     for batch_idx, (data, target) in enumerate(progress_bar):
         data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
+        
+        # Normalize the loss to account for accumulation steps
+        loss = loss / accumulation_steps
         loss.backward()
-        optimizer.step()
 
-        total_loss += loss.item()
+        if (batch_idx + 1) % accumulation_steps == 0:
+            custom_optimizer_step(optimizer, model)
+            optimizer.zero_grad()
+
+        total_loss += loss.item() * accumulation_steps
         _, predicted = torch.max(output.data, 1)
         all_preds.extend(predicted.cpu().numpy())
         all_labels.extend(target.cpu().numpy())
         
-        # 更新进度条描述
         progress_bar.set_description(f"Training - Loss: {loss.item():.4f}")
 
     avg_loss = total_loss / len(dataloader)
@@ -109,9 +119,9 @@ def load_checkpoint(model, optimizer, scheduler, filename):
 
 def main(args):
     # 设置超参数
-    batch_size = 32
+    batch_size = 16  # 减小批量大小
     num_epochs = 50
-    learning_rate = 1e-4
+    learning_rate = 1e-3  # 为 SGD 调整学习率
     
     device = get_device(args.platform, args.allow_virtual_memory)
     print(f"Using device: {device}")
@@ -135,10 +145,10 @@ def main(args):
 
     # 定义损失函数和优化器
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)  # 使用 SGD 代替 AdamW
 
     # 学习率调度器
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)  # 使用 StepLR 代替 CosineAnnealingLR
 
     # 如果指定了恢复训练，则加载检查点
     start_epoch = 0
