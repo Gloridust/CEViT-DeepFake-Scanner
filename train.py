@@ -10,8 +10,11 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 import time
-# import torch_directml # directml
+import argparse
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+                        
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     total_loss = 0
@@ -48,8 +51,8 @@ def validate(model, dataloader, criterion, device):
     total_loss = 0
     all_preds = []
     all_labels = []
-
-    # 使用tqdm创建进度条
+    
+   # 使用tqdm创建进度条
     progress_bar = tqdm(dataloader, desc="Validating", leave=False)
 
     with torch.no_grad():
@@ -72,14 +75,24 @@ def validate(model, dataloader, criterion, device):
 
     return avg_loss, accuracy, f1
 
-def main():
+def get_device(platform):
+    if platform == 'cuda' and torch.cuda.is_available():
+        return torch.device("cuda")
+    elif platform == 'mps' and torch.backends.mps.is_available():
+        return torch.device("mps")
+    elif platform == 'directml':
+        import torch_directml
+        return torch_directml.device(torch_directml.default_device())
+    else:
+        return torch.device("cpu")
+
+def main(args):
     # 设置超参数
     batch_size = 32
     num_epochs = 50
     learning_rate = 1e-4
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # cuda
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu") # Apple
-    # device = torch_directml.device(torch_directml.default_device()) # directml
+    
+    device = get_device(args.platform)
     print(f"Using device: {device}")
 
     # 数据预处理
@@ -132,4 +145,8 @@ def main():
     print("Training completed. Model saved as 'vit_df_scanner.pth'")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Train the ViT-DF-Scanner model.")
+    parser.add_argument('--platform', type=str, default='cpu', choices=['cpu', 'cuda', 'mps', 'directml'],
+                        help='Computation platform to use (default: cpu)')
+    args = parser.parse_args()
+    main(args)
