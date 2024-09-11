@@ -90,6 +90,37 @@ ViT-DF-Scanner 系统由以下主要组件组成：
 3. 监控训练进度：
    脚本将输出每个 epoch 的训练损失、准确率和 F1 分数，以及验证集上的相应指标。
 
+### 可选参数
+
+1. 自动保存和手动保存：
+   - 每10分钟自动保存一次检查点。
+   - 通过命令行参数 `--save_now` 可以触发手动保存。
+   - 保存的检查点包含模型状态、优化器状态、学习率调度器状态等，允许从任何保存点继续训练。
+
+2. 使用虚拟显存：
+   - 添加了 `--allow_virtual_memory` 参数，当使用时，允许 GPU 使用系统内存作为虚拟显存。
+   - 对于 DirectML，设置了环境变量 `PYTORCH_DIRECTML_ALLOW_SYSTEM_FALLBACK` 来允许使用系统内存。
+
+3. 恢复训练：
+   - 添加了 `--resume` 参数，可以指定检查点文件来恢复训练。
+
+使用方法示例：
+
+1. 正常训练：
+   ```
+   python train.py --platform directml --allow_virtual_memory
+   ```
+
+2. 恢复训练：
+   ```
+   python train.py --platform directml --allow_virtual_memory --resume checkpoint_epoch_10.pth
+   ```
+
+3. 手动保存：
+   ```
+   python train.py --platform directml --allow_virtual_memory --save_now
+   ```
+
 ### 模型评估
 
 1. 运行评估脚本：
