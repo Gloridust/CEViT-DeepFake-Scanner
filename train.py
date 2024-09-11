@@ -14,7 +14,7 @@ import argparse
 import os
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
-                        
+
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     total_loss = 0
