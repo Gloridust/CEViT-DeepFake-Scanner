@@ -76,7 +76,10 @@ def main():
     batch_size = 32
     num_epochs = 50
     learning_rate = 1e-4
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # cuda
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu") # Apple
+    # device = torch_directml.device(torch_directml.default_device()) # directml
+    print(f"Using device: {device}")
 
     # 数据预处理
     transform = transforms.Compose([
