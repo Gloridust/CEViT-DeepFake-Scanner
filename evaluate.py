@@ -70,7 +70,7 @@ def main():
     ])
 
     # 加载测试数据集
-    test_dataset = datasets.ImageFolder(root='path/to/test/dataset', transform=transform)
+    test_dataset = datasets.ImageFolder(root='./data/test', transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
     # 加载模型
