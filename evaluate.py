@@ -58,7 +58,7 @@ def visualize_attention(model, image, device):
 
 def main():
     # 设置超参数
-    batch_size = 32
+    batch_size = 16
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # N卡
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu") # Apple
 
@@ -75,7 +75,7 @@ def main():
 
     # 加载模型
     model = ViTDFScanner().to(device)
-    model.load_state_dict(torch.load('vit_df_scanner.pth'))
+    model.load_state_dict(torch.load('vit_df_scanner.pth', map_location=device, weights_only=True))
 
     # 评估模型
     accuracy, f1, cm = evaluate(model, test_loader, device)
