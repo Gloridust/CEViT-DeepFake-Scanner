@@ -166,3 +166,4 @@ data_min/
 .DS_Store
 .vscode
 *.pth
+data_min.zip
