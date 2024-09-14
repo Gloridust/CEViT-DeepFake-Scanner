@@ -9,6 +9,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+from tqdm import tqdm
 
 def evaluate(model, dataloader, device):
     model.eval()
@@ -16,7 +17,8 @@ def evaluate(model, dataloader, device):
     all_labels = []
 
     with torch.no_grad():
-        for data, target in dataloader:
+        # 使用 tqdm 包裹 dataloader 以显示进度条
+        for data, target in tqdm(dataloader, desc="Evaluating", leave=False):
             data, target = data.to(device), target.to(device)
             output = model(data)
             _, predicted = torch.max(output.data, 1)
