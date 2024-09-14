@@ -215,8 +215,8 @@ def main(args):
 
     # 保存最终模型
     try:
-        torch.save(model.state_dict(), 'vit_df_scanner_final.pth')
-        print("Training completed. Final model saved as 'vit_df_scanner_final.pth'")
+        torch.save(model.state_dict(), 'vit_df_scanner.pth')
+        print("Training completed. Final model saved as 'vit_df_scanner.pth'")
     except Exception as e:
         print(f"Error saving final model: {e}")
 
