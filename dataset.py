@@ -14,16 +14,22 @@ class FaceDataset(Dataset):
         self.image_paths = []
         self.labels = []
 
+        # 支持的图像文件扩展名
+        valid_image_extensions = (".jpg", ".jpeg", ".png", ".bmp", ".tiff")
+
         real_dir = os.path.join(data_dir, 'real')
         fake_dir = os.path.join(data_dir, 'fake')
 
+        # 只读取合法的图片文件
         for img_name in os.listdir(real_dir):
-            self.image_paths.append(os.path.join(real_dir, img_name))
-            self.labels.append(1)  # 真实人脸标签为1
+            if img_name.lower().endswith(valid_image_extensions):
+                self.image_paths.append(os.path.join(real_dir, img_name))
+                self.labels.append(1)  # 真实人脸标签为1
 
         for img_name in os.listdir(fake_dir):
-            self.image_paths.append(os.path.join(fake_dir, img_name))
-            self.labels.append(0)  # AI生成人脸标签为0
+            if img_name.lower().endswith(valid_image_extensions):
+                self.image_paths.append(os.path.join(fake_dir, img_name))
+                self.labels.append(0)  # AI生成人脸标签为0
 
         if train:
             self.transform = transforms.Compose([
