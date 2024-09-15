@@ -1,6 +1,6 @@
 # ViT-DF-Scanner: Vision Transformer-based Deep Fake Detection System
 
-本项目旨在鉴别AI生成的人脸，使用了`ConvNext`和`RepLKNet`模型的组合。
+本项目旨在鉴别AI生成的人脸，使用了`ConvNext`和`EfficientNet`模型的组合。
 
 ## 环境准备
 
@@ -68,12 +68,12 @@ data/
 运行以下命令开始训练：
 
 ```bash
-python main_train.py --data_dir data/train --device cuda --batch_size 16 --epochs 30
+python main_train.py --data_dir data/train --device cuda --batch_size 8 --epochs 30
 ```
 
 - `--data_dir`：训练数据的路径。
 - `--device`：使用的设备（`cuda`、`mps`或`cpu`）。
-- `--batch_size`：批次大小。根据您的设备内存调整。对于V100-16G，批次大小可设为32或64。对于M3 16G Mac，可设为8或16。
+- `--batch_size`：批次大小。根据您的设备内存调整。对于 16G 显存的设备，批次大小可设为6～7，否则有概率爆显存。
 - `--epochs`：训练轮数。
 
 训练完成后，模型会以`checkpoint_epoch_{epoch}.pth`的形式保存在当前目录。
@@ -83,7 +83,7 @@ python main_train.py --data_dir data/train --device cuda --batch_size 16 --epoch
 运行以下命令进行推理：
 
 ```bash
-python main_infer.py --data_dir data/test --device cuda --batch_size 16 --model_path checkpoint_epoch_30.pth
+python main_infer.py --data_dir data/test --device cuda --batch_size 8 --model_path checkpoint_epoch_30.pth
 ```
 
 - `--data_dir`：测试数据的路径。
@@ -98,9 +98,3 @@ python main_infer.py --data_dir data/test --device cuda --batch_size 16 --model_
 - **参数调整**：请根据您的设备性能调整批次大小和学习率。
 - **设备选择**：如果您指定的设备不可用，程序会自动切换到CPU。
 - **数据格式**：确保您的图像数据为RGB格式，大小为512x512。如果不是，请在`dataset.py`中修改预处理代码。
-
-## 可能的改进
-
-- **添加更多数据增强**：如随机裁剪、颜色抖动等。
-- **优化模型结构**：尝试使用其他预训练模型或自定义模型。
-- **调整超参数**：根据验证集性能调整学习率、优化器等超参数。
