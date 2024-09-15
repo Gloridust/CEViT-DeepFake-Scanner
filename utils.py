@@ -1,4 +1,4 @@
-# utils.py 训练和推理的辅助函数
+# utils.py
 
 import torch
 from tqdm import tqdm
@@ -9,11 +9,11 @@ def train(model, data_loader, criterion, optimizer, device):
 
     for images, labels in tqdm(data_loader, desc='Training'):
         images = images.to(device)
-        labels = labels.to(device).unsqueeze(1)
+        labels = labels.to(device).float()  # 移除 .squeeze(1)
 
         optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
+        outputs = model(images)  # [batch_size]
+        loss = criterion(outputs, labels)  # [batch_size], [batch_size]
         loss.backward()
         optimizer.step()
 
@@ -29,8 +29,8 @@ def inference(model, data_loader, device):
     with torch.no_grad():
         for images, _ in tqdm(data_loader, desc='Inference'):
             images = images.to(device)
-            outputs = model(images)
-            preds = torch.sigmoid(outputs)
+            outputs = model(images)  # [batch_size]
+            preds = torch.sigmoid(outputs)  # [batch_size]
             predictions.extend(preds.cpu().numpy())
 
     return predictions

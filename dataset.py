@@ -1,9 +1,11 @@
-# dataset.py 定义了数据集的加载和预处理
+# dataset.py
+# 定义了数据集的加载和预处理
 
 import os
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
+import torch
 
 class FaceDataset(Dataset):
     def __init__(self, data_dir, train=True):
@@ -12,7 +14,6 @@ class FaceDataset(Dataset):
         self.image_paths = []
         self.labels = []
 
-        # 假设真实人脸保存在'real'文件夹，AI生成的人脸保存在'fake'文件夹
         real_dir = os.path.join(data_dir, 'real')
         fake_dir = os.path.join(data_dir, 'fake')
 
@@ -41,9 +42,12 @@ class FaceDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = self.image_paths[idx]
-        label = float(self.labels[idx])
+        label = self.labels[idx]
 
         image = Image.open(img_path).convert('RGB')
         image = self.transform(image)
+
+        # 确保标签为 float32 类型的张量
+        label = torch.tensor(label, dtype=torch.float32)
 
         return image, label
