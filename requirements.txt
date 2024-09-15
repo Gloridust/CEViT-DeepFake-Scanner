@@ -1,12 +1,4 @@
-torch
+torch>=1.12.0
 torchvision
-numpy<2
-
-scipy
-scikit-learn
-matplotlib
-seaborn
-pillow
-tqdm
-einops
 timm
+tqdm
