@@ -1,16 +1,28 @@
-# main_infer.py 用于推理（测试）模型的主程序
+# main_infer.py 用于推理（分类）图片
 
 import argparse
 import torch
 from torch.utils.data import DataLoader
 from models import FinalModel
-from dataset import FaceDataset
-from utils import inference
+from torchvision import transforms
+from PIL import Image
+import os
+import shutil
+
+def infer(model, image_path, transform, device):
+    image = Image.open(image_path).convert('RGB')
+    image = transform(image).unsqueeze(0).to(device)
+    
+    with torch.no_grad():
+        output = model(image)
+        prob = torch.sigmoid(output).item()
+    
+    return prob
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Inference')
-    parser.add_argument('--data_dir', type=str, default='data/test', help='Path to test data')
-    parser.add_argument('--batch_size', type=int, default=16, help='Batch size for inference')
+    parser.add_argument('--input_dir', type=str, required=True, help='Path to input directory containing images')
+    parser.add_argument('--output_dir', type=str, required=True, help='Path to output directory for classified images')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for inference')
     parser.add_argument('--model_path', type=str, required=True, help='Path to the trained model')
 
@@ -25,18 +37,34 @@ def main():
 
     device = torch.device(args.device)
 
-    # 数据集和数据加载器
-    test_dataset = FaceDataset(args.data_dir, train=False)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+    # 创建输出目录
+    os.makedirs(os.path.join(args.output_dir, 'real'), exist_ok=True)
+    os.makedirs(os.path.join(args.output_dir, 'fake'), exist_ok=True)
 
     # 加载模型
     model = FinalModel().to(device)
     model.load_state_dict(torch.load(args.model_path, map_location=device))
+    model.eval()
 
-    # 开始推理
-    predictions = inference(model, test_loader, device)
-    print("Inference completed.")
-    # 您可以在此处添加代码以保存或处理预测结果
+    # 图像预处理
+    transform = transforms.Compose([
+        transforms.Resize((512, 512)),
+        transforms.ToTensor(),
+    ])
+
+    # 处理输入目录中的所有图片
+    for filename in os.listdir(args.input_dir):
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
+            image_path = os.path.join(args.input_dir, filename)
+            prob = infer(model, image_path, transform, device)
+            
+            # 根据概率决定图片类别并移动到相应目录
+            if prob > 0.5:
+                shutil.copy(image_path, os.path.join(args.output_dir, 'real', filename))
+            else:
+                shutil.copy(image_path, os.path.join(args.output_dir, 'fake', filename))
+
+    print("Inference completed. Images have been classified into 'real' and 'fake' folders.")
 
 if __name__ == '__main__':
     main()
