@@ -68,7 +68,7 @@ data/
 运行以下命令开始训练：
 
 ```bash
-python main_train.py --data_dir data/train --device cuda --batch_size 8 --epochs 20
+python main_train.py --data_dir data/train --device cuda --batch_size 8 --epochs 30
 ```
 
 - `--data_dir`：训练数据的路径。
@@ -83,7 +83,7 @@ python main_train.py --data_dir data/train --device cuda --batch_size 8 --epochs
 运行以下命令进行推理：
 
 ```bash
-python main_infer.py --data_dir data/test --device cuda --batch_size 8 --model_path checkpoint_epoch_20.pth
+python main_infer.py --data_dir data/test --device cuda --batch_size 8 --model_path checkpoint_epoch_30.pth
 ```
 
 - `--data_dir`：测试数据的路径。
