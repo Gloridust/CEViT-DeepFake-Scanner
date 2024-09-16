@@ -7,6 +7,7 @@ from models import FinalModel
 from dataset import FaceDataset
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import numpy as np
+from tqdm import tqdm
 
 def test(model, data_loader, device):
     model.eval()
@@ -14,7 +15,7 @@ def test(model, data_loader, device):
     all_labels = []
 
     with torch.no_grad():
-        for images, labels in data_loader:
+        for images, labels in tqdm(data_loader, desc='Testing'):
             images = images.to(device)
             outputs = model(images)
             preds = torch.sigmoid(outputs).cpu().numpy()

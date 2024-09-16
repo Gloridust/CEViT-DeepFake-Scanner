@@ -78,12 +78,12 @@ python main_train.py --data_dir data/train --device cuda --batch_size 8 --epochs
 
 训练完成后，模型会以`checkpoint_epoch_{epoch}.pth`的形式保存在当前目录。
 
-## 推理（测试）
+## 测试模型
 
-运行以下命令进行推理：
+运行以下命令进行测试：
 
 ```bash
-python main_infer.py --data_dir data/test --device cuda --batch_size 8 --model_path checkpoint_epoch_30.pth
+python main_test.py --data_dir data/test --device cuda --batch_size 8 --model_path checkpoint_epoch_30.pth
 ```
 
 - `--data_dir`：测试数据的路径。
@@ -91,7 +91,33 @@ python main_infer.py --data_dir data/test --device cuda --batch_size 8 --model_p
 - `--batch_size`：批次大小。
 - `--model_path`：训练好的模型路径。
 
-推理结果将在控制台输出，您也可以修改`main_infer.py`以保存或处理预测结果。
+测试结果将在控制台输出，包括准确率、精确度、召回率和F1分数。
+
+## 推理
+
+运行以下命令进行推理：
+
+```bash
+python main_infer.py --input_dir path/to/input/images --output_dir path/to/output --device cuda --model_path checkpoint_epoch_30.pth
+```
+
+- `--input_dir`：包含待分类图像的输入目录。
+- `--output_dir`：分类后图像的输出目录。
+- `--device`：使用的设备。
+- `--model_path`：训练好的模型路径。
+
+推理结果将被分类到输出目录下的 'real' 和 'fake' 文件夹中。
+
+## API 使用
+
+您可以使用 `main_infer_api.py` 中的 `FaceDetectionAPI` 类来集成到您的应用程序中：
+
+```python
+from main_infer_api import FaceDetectionAPI
+
+api = FaceDetectionAPI('path/to/your/model.pth')
+result, probability = api.infer('path/to/your/image.jpg')
+```
 
 ## 注意事项
 

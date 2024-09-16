@@ -8,6 +8,7 @@ from torchvision import transforms
 from PIL import Image
 import os
 import shutil
+from tqdm import tqdm
 
 def infer(model, image_path, transform, device):
     image = Image.open(image_path).convert('RGB')
@@ -52,17 +53,19 @@ def main():
         transforms.ToTensor(),
     ])
 
+    # 获取所有图片文件
+    image_files = [f for f in os.listdir(args.input_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
+
     # 处理输入目录中的所有图片
-    for filename in os.listdir(args.input_dir):
-        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
-            image_path = os.path.join(args.input_dir, filename)
-            prob = infer(model, image_path, transform, device)
-            
-            # 根据概率决定图片类别并移动到相应目录
-            if prob > 0.5:
-                shutil.copy(image_path, os.path.join(args.output_dir, 'real', filename))
-            else:
-                shutil.copy(image_path, os.path.join(args.output_dir, 'fake', filename))
+    for filename in tqdm(image_files, desc='Processing images'):
+        image_path = os.path.join(args.input_dir, filename)
+        prob = infer(model, image_path, transform, device)
+        
+        # 根据概率决定图片类别并移动到相应目录
+        if prob > 0.5:
+            shutil.copy(image_path, os.path.join(args.output_dir, 'real', filename))
+        else:
+            shutil.copy(image_path, os.path.join(args.output_dir, 'fake', filename))
 
     print("Inference completed. Images have been classified into 'real' and 'fake' folders.")
 
