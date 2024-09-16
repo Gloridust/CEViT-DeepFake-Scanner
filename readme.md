@@ -1,4 +1,4 @@
-# ViT-DF-Scanner: Vision Transformer-based Deep Fake Detection System
+# CE-DF-Scanner: ConvNext-EfficientNet-based Deep Fake Detection System
 
 本项目旨在鉴别AI生成的人脸，使用了`ConvNext`和`EfficientNet`模型的组合。
 
