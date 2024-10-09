@@ -4,7 +4,6 @@ import os
 import pandas as pd
 import argparse
 import torch
-from torch.utils.data import DataLoader
 from models import FinalModel
 from torchvision import transforms
 from PIL import Image
@@ -37,10 +36,10 @@ def infer_and_save_results(model, input_dir, output_csv, device):
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Inference')
-    parser.add_argument('--input_dir', type=str, required=True, help='Path to input directory containing images')
+    parser.add_argument('--input_dir', type=str, default='./testdata', help='Path to input directory containing images')
     parser.add_argument('--output_csv', type=str, default='./cla_pre.csv', help='Path to output CSV file')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for inference')
-    parser.add_argument('--model_path', type=str, required=True, help='Path to the trained model')
+    parser.add_argument('--model_path', type=str, default='./checkpoint_epoch_30.pth', help='Path to the trained model')
 
     args = parser.parse_args()
 
