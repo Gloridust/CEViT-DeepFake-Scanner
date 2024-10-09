@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 def infer_and_save_results(model, input_dir, output_csv, device):
     transform = transforms.Compose([
-        transforms.Resize((512, 512)),
+        transforms.Resize((512, 512)),  # 训练数据为512，推理时也使用512
         transforms.ToTensor(),
     ])
 
@@ -26,7 +26,7 @@ def infer_and_save_results(model, input_dir, output_csv, device):
         with torch.no_grad():
             output = model(image)
             prob = torch.sigmoid(output).item()
-            result = 1 if prob <= 0.5 else 0  # 0: AI生成, 1: 真实人脸
+            result = 1 if prob > 0.5 else 0  # 1: AI合成, 0: 真实人脸
             results.append((os.path.splitext(filename)[0], result))  # 保存文件名（无扩展名）和结果
 
     # 保存结果到 CSV 文件
