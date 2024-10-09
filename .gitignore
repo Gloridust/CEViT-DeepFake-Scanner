@@ -167,3 +167,4 @@ data_min/
 .vscode
 *.pth
 data_min.zip
+/testdata/   
