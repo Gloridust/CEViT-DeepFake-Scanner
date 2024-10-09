@@ -168,3 +168,4 @@ data_min/
 *.pth
 data_min.zip
 /testdata/   
+*.csv
