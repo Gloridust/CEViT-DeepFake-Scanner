@@ -3,3 +3,4 @@ torchvision
 timm
 tqdm
 scikit-learn
+pandas
