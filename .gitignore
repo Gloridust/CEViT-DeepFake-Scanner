@@ -167,5 +167,6 @@ data_min/
 .vscode
 *.pth
 data_min.zip
-/testdata/   
-*.csv
+/testdata/
+cla_pre.csv
+data.7z
