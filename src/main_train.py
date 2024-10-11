@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size for training')
-    parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train')
+    parser.add_argument('--epochs', type=int, default=20, help='Number of epochs to train')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
 
