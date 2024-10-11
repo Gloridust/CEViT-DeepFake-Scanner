@@ -33,13 +33,13 @@ class FaceDataset(Dataset):
 
         if train:
             self.transform = transforms.Compose([
-                transforms.Resize((512, 512)),
+                transforms.Resize((256, 256)),  # 调整为256以提高效率
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
             ])
         else:
             self.transform = transforms.Compose([
-                transforms.Resize((512, 512)),
+                transforms.Resize((256, 256)),  # 调整为256以提高效率
                 transforms.ToTensor(),
             ])
 

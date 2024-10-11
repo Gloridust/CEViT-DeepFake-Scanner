@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 def infer_and_save_results(model, input_dir, output_csv, device):
     transform = transforms.Compose([
-        transforms.Resize((512, 512)),  # 训练数据为512，推理时也使用512
+        transforms.Resize((256, 256)),  # 调整为256以提高效率
         transforms.ToTensor(),
     ])
 
@@ -36,7 +36,7 @@ def infer_and_save_results(model, input_dir, output_csv, device):
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Inference')
-    parser.add_argument('--input_dir', type=str, default='./testdata', help='Path to input directory containing images')
+    parser.add_argument('--input_dir', type=str, default='/testdata', help='Path to input directory containing images')
     parser.add_argument('--output_csv', type=str, default='./cla_pre.csv', help='Path to output CSV file')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for inference')
     parser.add_argument('--model_path', type=str, default='./src/checkpoint_epoch_30.pth', help='Path to the trained model')
