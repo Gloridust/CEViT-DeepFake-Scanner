@@ -43,9 +43,6 @@ class FaceDataset(Dataset):
         if train:
             self.transform = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomRotation(15),
-                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-                transforms.RandomResizedCrop(self.target_size, scale=(0.8, 1.0)),
                 self.basic_transform
             ])
         else:

@@ -17,18 +17,20 @@ class FinalModel(nn.Module):
     def __init__(self):
         super(FinalModel, self).__init__()
 
-        self.convnext = timm.create_model('convnext_base', pretrained=True, num_classes=0)
-        self.efficientnet = timm.create_model('efficientnet_b4', pretrained=True, num_classes=0)
+        self.convnext = timm.create_model('convnext_base', pretrained=True, num_classes=1)
+        self.convnext = AugmentInputsNetwork(self.convnext)
 
-        self.classifier = nn.Sequential(
-            nn.Linear(self.convnext.num_features + self.efficientnet.num_features, 512),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(512, 1)
-        )
+        self.efficientnet = timm.create_model('efficientnet_b4', pretrained=True, num_classes=1)
+        self.efficientnet = AugmentInputsNetwork(self.efficientnet)
+
+        # 添加一个简单的加权组合层
+        self.combine = nn.Linear(2, 1)
 
     def forward(self, x):
-        feat1 = self.convnext(x)
-        feat2 = self.efficientnet(x)
-        combined = torch.cat((feat1, feat2), dim=1)
-        return self.classifier(combined)
+        pred1 = self.convnext(x)
+        pred2 = self.efficientnet(x)
+
+        # 组合两个模型的输出
+        combined = torch.cat((pred1, pred2), dim=1)
+        output = self.combine(combined)
+        return output.squeeze(1)
