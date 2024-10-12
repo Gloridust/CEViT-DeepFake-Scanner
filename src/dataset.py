@@ -8,9 +8,10 @@ from torchvision import transforms
 import torch
 
 class FaceDataset(Dataset):
-    def __init__(self, data_dir, train=True):
+    def __init__(self, data_dir, train=True, target_size=(384, 384)):
         self.data_dir = data_dir
         self.train = train
+        self.target_size = target_size
         self.image_paths = []
         self.labels = []
 
@@ -31,17 +32,21 @@ class FaceDataset(Dataset):
                 self.image_paths.append(os.path.join(fake_dir, img_name))
                 self.labels.append(0)  # AI生成人脸标签为0
 
+        # 定义基本变换
+        self.basic_transform = transforms.Compose([
+            transforms.Resize(self.target_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
+        # 为训练集添加数据增强
         if train:
             self.transform = transforms.Compose([
-                transforms.Resize((256, 256)),  # 调整为256以提高效率
                 transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
+                self.basic_transform
             ])
         else:
-            self.transform = transforms.Compose([
-                transforms.Resize((256, 256)),  # 调整为256以提高效率
-                transforms.ToTensor(),
-            ])
+            self.transform = self.basic_transform
 
     def __len__(self):
         return len(self.labels)
@@ -50,7 +55,10 @@ class FaceDataset(Dataset):
         img_path = self.image_paths[idx]
         label = self.labels[idx]
 
+        # 打开图像并确保它是RGB模式
         image = Image.open(img_path).convert('RGB')
+        
+        # 应用变换
         image = self.transform(image)
 
         # 确保标签为 float32 类型的张量

@@ -11,10 +11,10 @@ from utils import train, adjust_learning_rate
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
-    parser.add_argument('--batch_size', type=int, default=16, help='Batch size for training')
+    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')
     parser.add_argument('--epochs', type=int, default=20, help='Number of epochs to train')
-    parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
-    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
+    parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'], help='Device to use for training')
+    parser.add_argument('--lr', type=float, default=0.0005, help='Learning rate')
 
     args = parser.parse_args()
 
@@ -37,7 +37,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # 学习率调度器
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # 开始训练
     for epoch in range(1, args.epochs + 1):
