@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 from models import FinalModel
 from dataset import FaceDataset
 from utils import train, adjust_learning_rate
+from torch.optim.lr_scheduler import OneCycleLR
+from torch.cuda.amp import GradScaler, autocast
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
@@ -36,14 +38,14 @@ def main():
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    # 学习率调度器
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    # 使用 OneCycleLR 调度器
+    scheduler = OneCycleLR(optimizer, max_lr=args.lr, epochs=args.epochs, steps_per_epoch=len(train_loader))
+
+    scaler = GradScaler()
 
     # 开始训练
     for epoch in range(1, args.epochs + 1):
-        train_loss = train(model, train_loader, criterion, optimizer, device)
-        scheduler.step()
-
+        train_loss = train(model, train_loader, criterion, optimizer, device, scheduler, scaler)
         print(f"Epoch [{epoch}/{args.epochs}], Loss: {train_loss:.4f}")
 
         # 保存模型
