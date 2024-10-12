@@ -2,26 +2,20 @@
 
 import torch
 from tqdm import tqdm
-from torch.cuda.amp import autocast
 
-def train(model, data_loader, criterion, optimizer, device, scheduler, scaler):
+def train(model, data_loader, criterion, optimizer, device):
     model.train()
     total_loss = 0
 
     for images, labels in tqdm(data_loader, desc='Training'):
         images = images.to(device)
-        labels = labels.to(device).float()
+        labels = labels.to(device).float()  # 移除 .squeeze(1)
 
         optimizer.zero_grad()
-
-        with autocast():
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
-        scheduler.step()
+        outputs = model(images)  # [batch_size]
+        loss = criterion(outputs, labels)  # [batch_size], [batch_size]
+        loss.backward()
+        optimizer.step()
 
         total_loss += loss.item()
 
