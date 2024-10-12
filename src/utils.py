@@ -14,17 +14,17 @@ def train(model, data_loader, criterion, optimizer, device, scheduler, scaler):
 
         optimizer.zero_grad()
 
-        with autocast():
+        with autocast(enabled=scaler.is_enabled()):
             outputs = model(images)
             loss = criterion(outputs, labels)
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
-        scheduler.step()
 
         total_loss += loss.item()
 
+    scheduler.step()
     avg_loss = total_loss / len(data_loader)
     return avg_loss
 
@@ -46,3 +46,26 @@ def adjust_learning_rate(optimizer, epoch, initial_lr):
     lr = initial_lr * (0.1 ** (epoch // 10))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
+@torch.no_grad()
+def validate(model, data_loader, criterion, device):
+    model.eval()
+    total_loss = 0
+    correct = 0
+    total = 0
+
+    for images, labels in tqdm(data_loader, desc='Validating'):
+        images = images.to(device)
+        labels = labels.to(device).float()
+
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        
+        total_loss += loss.item()
+        predicted = (outputs > 0).float()  # 使用 0 作为阈值进行预测
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+    avg_loss = total_loss / len(data_loader)
+    accuracy = correct / total
+    return avg_loss, accuracy
