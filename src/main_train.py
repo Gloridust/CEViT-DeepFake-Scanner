@@ -11,7 +11,7 @@ from utils import train, adjust_learning_rate
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')
+    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for training')
     parser.add_argument('--epochs', type=int, default=20, help='Number of epochs to train')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'], help='Device to use for training')
     parser.add_argument('--lr', type=float, default=0.0005, help='Learning rate')
