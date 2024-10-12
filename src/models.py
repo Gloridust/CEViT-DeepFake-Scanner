@@ -17,12 +17,9 @@ class FinalModel(nn.Module):
     def __init__(self):
         super(FinalModel, self).__init__()
 
-        self.convnext = timm.create_model('convnext_base', pretrained=True, num_classes=1)
-        # 移除 AugmentInputsNetwork 包装
-        # self.convnext = AugmentInputsNetwork(self.convnext)
-
-        self.efficientnet = timm.create_model('efficientnet_b4', pretrained=True, num_classes=1)
-        # self.efficientnet = AugmentInputsNetwork(self.efficientnet)
+        # 使用更小的模型以减少显存占用
+        self.convnext = timm.create_model('convnext_tiny', pretrained=True, num_classes=1)
+        self.efficientnet = timm.create_model('efficientnet_b0', pretrained=True, num_classes=1)
 
         # 添加一个简单的加权组合层
         self.combine = nn.Linear(2, 1)

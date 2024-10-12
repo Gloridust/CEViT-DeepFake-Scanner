@@ -3,12 +3,14 @@
 import argparse
 import torch
 from torch import nn, optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from models import FinalModel
 from dataset import FaceDataset
-from utils import train
+from utils import train, validate
 from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import random
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
@@ -29,9 +31,21 @@ def main():
 
     device = torch.device(args.device)
 
+    # 根据设备类型决定是否使用混合精度
+    if device.type == 'cuda':
+        from torch.cuda.amp import GradScaler
+        scaler = GradScaler()
+    else:
+        scaler = None
+
     # 数据集和数据加载器
-    train_dataset = FaceDataset(args.data_dir, train=True)
+    total_dataset = FaceDataset(args.data_dir, train=True)
+    train_size = int(0.8 * len(total_dataset))
+    val_size = len(total_dataset) - train_size
+    train_dataset, val_dataset = random_split(total_dataset, [train_size, val_size])
+
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     # 模型、损失函数和优化器
     model = FinalModel().to(device)
@@ -41,15 +55,13 @@ def main():
     # 学习率调度器
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
-    # 修正 GradScaler 的初始化
-    scaler = GradScaler()
-
     # 开始训练
     for epoch in range(1, args.epochs + 1):
         train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
+        val_loss = validate(model, val_loader, criterion, device)  # 添加验证步骤
         scheduler.step()
 
-        print(f"Epoch [{epoch}/{args.epochs}], Loss: {train_loss:.4f}")
+        print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
         # 保存模型
         torch.save(model.state_dict(), f'checkpoint_epoch_{epoch}.pth')
