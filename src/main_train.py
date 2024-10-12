@@ -10,7 +10,6 @@ from utils import train, validate
 from torch.nn import functional as F
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.cuda.amp import GradScaler
 
 class LabelSmoothingLoss(nn.Module):
     def __init__(self, smoothing=0.1):
