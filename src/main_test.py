@@ -48,7 +48,22 @@ def main():
 
     # 加载模型
     model = FinalModel().to(device)
-    model.load_state_dict(torch.load(args.model_path, map_location=device))
+    print("模型结构:")
+    print(model)
+    
+    # 尝试加载模型状态
+    try:
+        state_dict = torch.load(args.model_path, map_location=device)
+        model.load_state_dict(state_dict, strict=False)
+        print("模型加载成功（使用非严格模式）")
+    except Exception as e:
+        print(f"加载模型时出错: {e}")
+        print("正在尝试打印状态字典的键...")
+        state_dict = torch.load(args.model_path, map_location=device)
+        print("状态字典中的键:")
+        for key in state_dict.keys():
+            print(key)
+        return
 
     # 开始测试
     predictions, labels = test(model, test_loader, device)

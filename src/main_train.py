@@ -6,15 +6,17 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from models import FinalModel
 from dataset import FaceDataset
-from utils import train, adjust_learning_rate
+from utils import train
+from torch.cuda.amp import GradScaler
+from torch.cuda.amp import autocast
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
-    parser.add_argument('--batch_size', type=int, default=16, help='Batch size for training')
-    parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train')
+    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for training')
+    parser.add_argument('--epochs', type=int, default=20, help='Number of epochs to train')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
-    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
+    parser.add_argument('--lr', type=float, default=0.0005, help='Learning rate')
 
     args = parser.parse_args()
 
@@ -37,11 +39,14 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # 学习率调度器
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+
+    # 修正 GradScaler 的初始化
+    scaler = GradScaler()
 
     # 开始训练
     for epoch in range(1, args.epochs + 1):
-        train_loss = train(model, train_loader, criterion, optimizer, device)
+        train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
         scheduler.step()
 
         print(f"Epoch [{epoch}/{args.epochs}], Loss: {train_loss:.4f}")

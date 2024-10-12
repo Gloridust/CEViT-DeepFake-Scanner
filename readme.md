@@ -70,7 +70,7 @@ data/
 运行以下命令开始训练：
 
 ```bash
-python main_train.py --data_dir data/train --device cuda --batch_size 8 --epochs 30
+python main_train.py --data_dir data/train --device cuda --batch_size 8 --epochs 20
 ```
 
 - `--data_dir`：训练数据的路径。
