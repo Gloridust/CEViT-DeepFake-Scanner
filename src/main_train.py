@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 from models import FinalModel
 from dataset import FaceDataset
 from utils import train, adjust_learning_rate
+from torch.cuda.amp import GradScaler
+from torch.amp import autocast
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
@@ -39,9 +41,12 @@ def main():
     # 学习率调度器
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
+    # 在文件顶部添加以下导入
+    scaler = GradScaler('cuda')
+
     # 开始训练
     for epoch in range(1, args.epochs + 1):
-        train_loss = train(model, train_loader, criterion, optimizer, device)
+        train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
         scheduler.step()
 
         print(f"Epoch [{epoch}/{args.epochs}], Loss: {train_loss:.4f}")
