@@ -31,4 +31,4 @@ class FinalModel(nn.Module):
         feat1 = self.convnext(x)
         feat2 = self.efficientnet(x)
         combined = torch.cat((feat1, feat2), dim=1)
-        return self.classifier(combined)
+        return self.classifier(combined).squeeze(-1)  # 确保输出是 [batch_size]
