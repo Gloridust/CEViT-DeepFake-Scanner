@@ -11,8 +11,9 @@ from tqdm import tqdm
 
 def infer_and_save_results(model, input_dir, output_csv, device):
     transform = transforms.Compose([
-        transforms.Resize((256, 256)),  # 调整为256以提高效率
+        transforms.Resize((384, 384)),  # 修改为384以与训练一致
         transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 添加归一化
     ])
 
     image_files = [f for f in os.listdir(input_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]

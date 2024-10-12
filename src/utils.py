@@ -2,7 +2,7 @@
 
 import torch
 from tqdm import tqdm
-from torch.amp import autocast
+from torch.cuda.amp import autocast  # 修正导入路径
 
 def train(model, data_loader, criterion, optimizer, device, scaler):
     model.train()
@@ -14,7 +14,7 @@ def train(model, data_loader, criterion, optimizer, device, scaler):
 
         optimizer.zero_grad()
         
-        with autocast(device_type='cuda', dtype=torch.float16):
+        with autocast():
             outputs = model(images)
             loss = criterion(outputs, labels)
 

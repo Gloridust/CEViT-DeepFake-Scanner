@@ -18,10 +18,11 @@ class FinalModel(nn.Module):
         super(FinalModel, self).__init__()
 
         self.convnext = timm.create_model('convnext_base', pretrained=True, num_classes=1)
-        self.convnext = AugmentInputsNetwork(self.convnext)
+        # 移除 AugmentInputsNetwork 包装
+        # self.convnext = AugmentInputsNetwork(self.convnext)
 
         self.efficientnet = timm.create_model('efficientnet_b4', pretrained=True, num_classes=1)
-        self.efficientnet = AugmentInputsNetwork(self.efficientnet)
+        # self.efficientnet = AugmentInputsNetwork(self.efficientnet)
 
         # 添加一个简单的加权组合层
         self.combine = nn.Linear(2, 1)

@@ -25,12 +25,12 @@ class FaceDataset(Dataset):
         for img_name in os.listdir(real_dir):
             if img_name.lower().endswith(valid_image_extensions):
                 self.image_paths.append(os.path.join(real_dir, img_name))
-                self.labels.append(1)  # 真实人脸标签为1
+                self.labels.append(0)  # 真实人脸标签为0
 
         for img_name in os.listdir(fake_dir):
             if img_name.lower().endswith(valid_image_extensions):
                 self.image_paths.append(os.path.join(fake_dir, img_name))
-                self.labels.append(0)  # AI生成人脸标签为0
+                self.labels.append(1)  # AI生成人脸标签为1
 
         # 定义基本变换
         self.basic_transform = transforms.Compose([
