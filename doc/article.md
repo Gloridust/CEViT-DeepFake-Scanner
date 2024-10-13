@@ -26,9 +26,11 @@ CE-DF-Scanner的整体架构设计包括数据预处理模块、特征提取模�
 
    标准化的数学表达式如下：
 
-   \[ x_{normalized} = \frac{x - \mu}{\sigma} \]
+   $$
+   x_{normalized} = \frac{x - \mu}{\sigma}
+   $$
 
-   其中，\( x \) 是原始像素值，\( \mu \) 是均值，\( \sigma \) 是标准差。
+   其中，$x$ 是原始像素值，$\mu$ 是均值，$\sigma$ 是标准差。
 
 3. **数据增强**：在训练过程中，我们采用了随机水平翻转的数据增强技术，以增加数据的多样性，有效防止模型过拟合，提高模型的泛化能力。
 
@@ -42,25 +44,33 @@ CE-DF-Scanner的整体架构设计包括数据预处理模块、特征提取模�
 
 1. **深度可分离卷积**：使用深度可分离卷积替代标准卷积，减少参数量和计算复杂度。深度可分离卷积的数学表达式如下：
 
-   \[ Y = (X * K_d) * K_p \]
+   $$
+   Y = (X * K_d) * K_p
+   $$
 
-   其中，\( X \) 是输入特征图，\( K_d \) 是深度卷积核，\( K_p \) 是逐点卷积核。
+   其中，$X$ 是输入特征图，$K_d$ 是深度卷积核，$K_p$ 是逐点卷积核。
 
 2. **注意力机制**：引入自注意力机制，增强模型对重要特征的关注。自注意力机制可以表示为：
 
-   \[ Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V \]
+   $$
+   Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V
+   $$
 
-   其中，\( Q \)、\( K \)、\( V \) 分别是查询、键和值矩阵，\( d_k \) 是键的维度。
+   其中，$Q$、$K$、$V$ 分别是查询、键和值矩阵，$d_k$ 是键的维度。
 
 #### 2.2.2 EfficientNet
 
 我们选用了EfficientNet-B0变体。EfficientNet的核心思想是通过复合缩放来平衡网络的深度、宽度和分辨率。其缩放公式如下：
 
-\[ depth: d = \alpha^\phi \]
-\[ width: w = \beta^\phi \]
-\[ resolution: r = \gamma^\phi \]
+$$
+\begin{aligned}
+depth: d &= \alpha^\phi \\
+width: w &= \beta^\phi \\
+resolution: r &= \gamma^\phi
+\end{aligned}
+$$
 
-其中，\( \phi \) 是缩放系数，\( \alpha \)、\( \beta \)、\( \gamma \) 是通过网格搜索确定的常数。
+其中，$\phi$ 是缩放系数，$\alpha$、$\beta$、$\gamma$ 是通过网格搜索确定的常数。
 
 ### 2.3 分类
 
@@ -69,19 +79,25 @@ CE-DF-Scanner的整体架构设计包括数据预处理模块、特征提取模�
 1. **特征融合**：将ConvNext和EfficientNet提取的特征进行拼接，形成一个高维特征向量。
 2. **特征降维**：通过一个全连接层将高维特征向量映射到一个标量输出。全连接层的数学表达式为：
 
-   \[ y = Wx + b \]
+   $$
+   y = Wx + b
+   $$
 
-   其中，\( W \) 是权重矩阵，\( x \) 是输入特征，\( b \) 是偏置项。
+   其中，$W$ 是权重矩阵，$x$ 是输入特征，$b$ 是偏置项。
 
 3. **Sigmoid激活**：使用Sigmoid函数将输出映射到[0,1]区间，表示图像为伪造的概率。Sigmoid函数的数学表达式为：
 
-   \[ \sigma(x) = \frac{1}{1 + e^{-x}} \]
+   $$
+   \sigma(x) = \frac{1}{1 + e^{-x}}
+   $$
 
 在训练过程中，我们采用二元交叉熵损失函数（BCEWithLogitsLoss）来衡量模型的分类误差。其数学表达式为：
 
-\[ L = -\frac{1}{N}\sum_{i=1}^N [y_i \log(\sigma(x_i)) + (1-y_i) \log(1-\sigma(x_i))] \]
+$$
+L = -\frac{1}{N}\sum_{i=1}^N [y_i \log(\sigma(x_i)) + (1-y_i) \log(1-\sigma(x_i))]
+$$
 
-其中，\( N \) 是样本数量，\( y_i \) 是真实标签，\( x_i \) 是模型输出。
+其中，$N$ 是样本数量，$y_i$ 是真实标签，$x_i$ 是模型输出。
 
 ### 2.4 后处理
 
@@ -113,25 +129,31 @@ CE-DF-Scanner的整体架构设计包括数据预处理模块、特征提取模�
 
 我们选择了Adam优化器来优化模型参数，初始学习率设置为0.0005。Adam优化器的更新规则如下：
 
-\[ m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t \]
-\[ v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2 \]
-\[ \hat{m}_t = \frac{m_t}{1 - \beta_1^t} \]
-\[ \hat{v}_t = \frac{v_t}{1 - \beta_2^t} \]
-\[ \theta_t = \theta_{t-1} - \alpha \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} \]
+$$
+\begin{aligned}
+m_t &= \beta_1 m_{t-1} + (1 - \beta_1) g_t \\
+v_t &= \beta_2 v_{t-1} + (1 - \beta_2) g_t^2 \\
+\hat{m}_t &= \frac{m_t}{1 - \beta_1^t} \\
+\hat{v}_t &= \frac{v_t}{1 - \beta_2^t} \\
+\theta_t &= \theta_{t-1} - \alpha \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}
+\end{aligned}
+$$
 
-其中，\( m_t \) 和 \( v_t \) 分别是梯度的一阶矩和二阶矩估计，\( \beta_1 \) 和 \( \beta_2 \) 是衰减率，\( \alpha \) 是学习率，\( \epsilon \) 是一个小常数。
+其中，$m_t$ 和 $v_t$ 分别是梯度的一阶矩和二阶矩估计，$\beta_1$ 和 $\beta_2$ 是衰减率，$\alpha$ 是学习率，$\epsilon$ 是一个小常数。
 
 ### 4.2 学习率调度
 
 我们采用了余弦退火学习率调度策略（CosineAnnealingLR），该策略能够在训练初期保持较高的学习率以快速收敛，在训练后期降低学习率以微调模型参数。学习率的计算公式如下：
 
-\[ \eta_t = \eta_{min} + \frac{1}{2}(\eta_{max} - \eta_{min})(1 + \cos(\frac{t}{T}\pi)) \]
+$$
+\eta_t = \eta_{min} + \frac{1}{2}(\eta_{max} - \eta_{min})(1 + \cos(\frac{t}{T}\pi))
+$$
 
-其中，\( \eta_t \) 是第 \( t \) 个epoch的学习率，\( \eta_{min} \) 和 \( \eta_{max} \) 分别是最小和最大学习率，\( T \) 是总的训练epoch数。
+其中，$\eta_t$ 是第 $t$ 个epoch的学习率，$\eta_{min}$ 和 $\eta_{max}$ 分别是最小和最大学习率，$T$ 是总的训练epoch数。
 
 ### 4.3 训练过程
 
-模型训练持续20个epoch，每个epoch后都会在验证集上评估���型性能，并保存模型检查点。我们还实现了混合精度训练，以加速训练过程并减少内存占用。混合精度训练使用FP16（半精度浮点数）进行部分计算，同时保持FP32（单精度浮点数）的模型权重，从而在不损失精度的情况下提高训练速度。
+模型训练持续20个epoch，每个epoch后都会在验证集上评估模型性能，并保存模型检查点。我们还实现了混合精度训练，以加速训练过程并减少内存占用。混合精度训练使用FP16（半精度浮点数）进行部分计算，同时保持FP32（单精度浮点数）的模型权重，从而在不损失精度的情况下提高训练速度。
 
 ## 5. 实验结果与分析
 
@@ -145,35 +167,15 @@ CE-DF-Scanner的整体架构设计包括数据预处理模块、特征提取模�
 
 这些评估指标的计算公式如下：
 
-- 准确率：\( Accuracy = \frac{TP + TN}{TP + TN + FP + FN} \)
-- 精确率：\( Precision = \frac{TP}{TP + FP} \)
-- 召回率：\( Recall = \frac{TP}{TP + FN} \)
-- F1分数：\( F1 = 2 \cdot \frac{Precision \cdot Recall}{Precision + Recall} \)
+- 准确率：$Accuracy = \frac{TP + TN}{TP + TN + FP + FN}$
+- 精确率：$Precision = \frac{TP}{TP + FP}$
+- 召回率：$Recall = \frac{TP}{TP + FN}$
+- F1分数：$F1 = 2 \cdot \frac{Precision \cdot Recall}{Precision + Recall}$
 
 其中，TP是真正例，TN是真负例，FP是假正例，FN是假负例。
 
 这些结果表明，CE-DF-Scanner在检测AI生成的人脸方面表现出色，具有极高的准确性和可靠性。特别是在精确率方面的出色表现，意味着该系统在实际应用中能够最大限度地减少误报，这对于维护社会信任和防止错误指控至关重要。
 
-## 6. 结论与未来工作
+## 6. 结论
 
 本文提出了CE-DF-Scanner，一个基于ConvNext和EfficientNet模型的深度伪造检测系统。通过巧妙结合两种先进的卷积神经网络模型，CE-DF-Scanner在检测AI生成的人脸方面取得了显著效果。实验结果表明，该系统在准确率、精确率、召回率和F1分数等多个评估指标上均达到了极高的水平。
-
-未来的工作将主要集中在以下几个方面：
-
-1. **模型轻量化**：进一步优化模型结构，探索模型压缩和知识蒸馏技术，以适应移动设备等资源受限的环境。
-2. **对抗样本防御**：研究如何增强模型的鲁棒性，以应对可能出现的针对检测系统的对抗样本。
-3. **多模态融合**：探索结合音频和文本等其他模态信息，以进一步提升系统性能。
-
-   \[ Attention_{multi}(Q, K, V) = \sum_{i=1}^M w_i \cdot Attention_i(Q_i, K_i, V_i) \]
-
-   其中，\( M \) 是模态数量，\( w_i \) 是每个模态的权重。
-
-4. **可解释性研究**：提高模型的可解释性，增强用户信任，并为进一步改进模型提供洞察。可以考虑使用梯度加权类激活映射（Grad-CAM）等技术来可视化模型的决策过程，其数学表达式为：
-
-   \[ L^c_{Grad-CAM} = ReLU(\sum_k \alpha^c_k A^k) \]
-
-   其中，\( \alpha^c_k \) 是特征图 \( k \) 对类别 \( c \) 的重要性权重。
-
-5. **实时检测**：优化模型推理速度，使其能够在实时视频流中进行检测，以应对更广泛的应用场景。这可以通过模型量化和剪枝等技术来实现，例如，权重量化可以表示为：
-
-   \[ W_q = round(W * \frac{2^n - 1}{W_{max} - W_{min}}) * \frac{W_{max} - W_{
