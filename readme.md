@@ -1,142 +1,98 @@
-# CE-DF-Scanner: ConvNext-EfficientNet-based Deep Fake Detection System
+# CE-DF-Scanner
 
-本项目旨在鉴别AI生成的人脸，使用了`ConvNext`和`EfficientNet`模型的组合。
+CE-DF-Scanner 是一个基于深度学习的工具，用于检测图像中的AI生成人脸。它结合使用ConvNeXt和EfficientNet模型，以实现高准确度地区分真实和AI生成的人脸图像。
 
-注意：cpu 和 mps 支持尚未完善，目前仅支持 cuda 环境下操作。
+## 目录
 
-## 环境准备
+- [CE-DF-Scanner](#ce-df-scanner)
+  - [目录](#目录)
+  - [特性](#特性)
+  - [安装](#安装)
+  - [使用方法](#使用方法)
+    - [训练](#训练)
+    - [推理](#推理)
+  - [项目结构](#项目结构)
+  - [许可证](#许可证)
 
-1. **克隆或下载项目代码。**
+## 特性
 
-2. **创建虚拟环境（可选但推荐）。**
+- 利用最先进的深度学习模型（ConvNeXt和EfficientNet）
+- 支持训练和推理模式
+- 实现数据增强和混合精度训练以提高性能
+- 在验证过程中提供详细的指标（准确率、精确率、召回率、F1分数）
+- 性能指标：
+  - Loss: 0.0173
+  - Accuracy: 0.9941
+  - Precision: 0.9985
+  - Recall: 0.9942
+  - F1 Score: 0.9964
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   venv\Scripts\activate     # Windows
+## 安装
+
+1. 克隆仓库：
+   ```
+   git clone https://github.com/yourusername/CE-DF-Scanner.git
+   cd CE-DF-Scanner
    ```
 
-3. **安装所需的Python库。**
+2. 创建虚拟环境（可选但推荐）：
+   ```
+   python -m venv venv
+   source venv/bin/activate  # 在Windows上，使用 `venv\Scripts\activate`
+   ```
 
-   ```bash
+3. 安装所需的包：
+   ```
    pip install -r requirements.txt
    ```
 
-   请确保您的PyTorch版本支持CUDA和MPS。如果没有，请根据您的设备重新安装适合的PyTorch版本。
+## 使用方法
 
-   - **CUDA（NVIDIA V100-16G）**
+### 训练
 
-     ```bash
-     pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu117
-     ```
-
-   - **MPS（Apple M3 16G Mac）**
-
-     ```bash
-     pip install torch torchvision torchaudio
-     ```
-
-## 数据准备
-
-请按照以下目录结构准备您的数据：
+使用 `main_train.py` 脚本来训练模型：
 
 ```
-data/
-├── train/
-│   ├── real/
-│   │   ├── img1.jpg
-│   │   ├── img2.jpg
-│   │   └── ...
-│   └── fake/
-│       ├── img1.jpg
-│       ├── img2.jpg
-│       └── ...
-└── test/
-    ├── real/
-    │   ├── img1.jpg
-    │   ├── img2.jpg
-    │   └── ...
-    └── fake/
-        ├── img1.jpg
-        ├── img2.jpg
-        └── ...
+python src/main_train.py --data_dir 训练数据路径 --batch_size 8 --epochs 20 --device cuda --lr 0.0005
 ```
 
-- 将真实人脸图像放入`real`文件夹。
-- 将AI生成的人脸图像放入`fake`文件夹。
+参数：
+- `--data_dir`：训练数据目录的路径
+- `--batch_size`：训练的批量大小（默认：8）
+- `--epochs`：训练的轮数（默认：20）
+- `--device`：用于训练的设备（cuda、mps或cpu；默认：cuda）
+- `--lr`：学习率（默认：0.0005）
 
-## 训练模型
+### 推理
 
-运行以下命令开始训练：
-
-```bash
-python main_train.py --data_dir data/train --device cuda --batch_size 8 --epochs 20
-```
-
-- `--data_dir`：训练数据的路径。
-- `--device`：使用的设备（`cuda`、`mps`或`cpu`）。
-- `--batch_size`：批次大小。根据您的设备内存调整。对于 16G 显存的设备，批次大小可设为6～7，否则有概率爆显存。
-- `--epochs`：训练轮数。
-
-训练完成后，模型会以`checkpoint_epoch_{epoch}.pth`的形式保存在当前目录。
-
-## 测试模型
-
-运行以下命令进行测试：
-
-```bash
-python main_test.py --data_dir data/test --device cuda --batch_size 8 --model_path checkpoint_epoch_30.pth
-```
-
-- `--data_dir`：测试数据的路径。
-- `--device`：使用的设备。
-- `--batch_size`：批次大小。
-- `--model_path`：训练好的模型路径。
-
-测试结果将在控制台输出，包括准确率、精确度、召回率和F1分数。
-
-## 推理
-
-运行以下命令进行推理：
-
-```bash
-python main_infer.py --input_dir path/to/input/images --output_dir path/to/output --device cuda --model_path checkpoint_epoch_30.pth
-```
-
-- `--input_dir`：包含待分类图像的输入目录。
-- `--output_dir`：分类后图像的输出目录。
-- `--device`：使用的设备。
-- `--model_path`：训练好的模型路径。
-
-推理结果将被分类到输出目录下的 'real' 和 'fake' 文件夹中。
-
-## API 使用
-
-您可以使用 `main_infer_api.py` 中的 `FaceDetectionAPI` 类来集成到您的应用程序中：
-
-```python
-from main_infer_api import FaceDetectionAPI
-
-api = FaceDetectionAPI('path/to/your/model.pth')
-result, probability = api.infer('path/to/your/image.jpg')
-```
-
-## 注意事项
-
-- **参数调整**：请根据您的设备性能调整批次大小和学习率。
-- **设备选择**：如果您指定的设备不可用，程序会自动切换到CPU。
-- **数据格式**：确保您的图像数据为RGB格式，大小为512x512。如果不是，请在`dataset.py`中修改预处理代码。
-
-## 测试结果
-
-以 512*512 规格的 3.12G 图片做训练，30 Epoch 后结果如下：
+使用 `main.py` 脚本对一组图像进行推理：
 
 ```
-Test Results:
-Accuracy: 0.8102
-Precision: 0.9940
-Recall: 0.7349
-F1 Score: 0.8451
+python src/main.py --input_dir 输入图像路径 --output_csv 输出文件路径.csv --device cuda --model_path 模型检查点路径.pth
 ```
 
-在此次模型测试中，该模型表现出诸多优秀之处。其准确率达到了 0.8102，表明模型在整体判断上具有较高的正确性。精度高达 0.9940，说明模型在预测为正例的样本中，真正的正例比例非常高。召回率为 0.7349，意味着模型能够成功识别出大部分的正例样本。F1 分数为 0.8451，综合考虑了精度和召回率，进一步体现了模型在准确性和全面性之间的良好平衡。总体而言，该模型在本次测试中展现出了较高的准确性、精度以及在识别正例样本方面的出色能力，同时在精度和召回率的平衡上也有较好的表现。
+参数：
+- `--input_dir`：包含输入图像的目录路径（默认：/testdata）
+- `--output_csv`：保存输出CSV文件的路径（默认：./cla_pre.csv）
+- `--device`：用于推理的设备（cuda、mps或cpu；默认：cuda）
+- `--model_path`：训练好的模型检查点的路径（默认：./src/checkpoint_epoch_9.pth）
+
+## 项目结构
+
+```
+CE-DF-Scanner/
+├── src/
+│   ├── dataset.py      # 数据集加载和预处理
+│   ├── main.py         # 推理脚本
+│   ├── main_train.py   # 训练脚本
+│   ├── models.py       # 模型架构定义
+│   └── utils.py        # 用于训练和评估的实用函数
+├── doc/
+│   └── article.md      # 项目相关文档或文章
+├── requirements.txt    # Python依赖
+└── README.md           # 本文件
+```
+
+## 许可证
+
+[MIT](LICENSE)
