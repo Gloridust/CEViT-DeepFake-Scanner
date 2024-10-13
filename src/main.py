@@ -17,6 +17,7 @@ def infer_and_save_results(model, input_dir, output_csv, device):
     ])
 
     image_files = [f for f in os.listdir(input_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
+    print(f"扫描到的图片数量: {len(image_files)}")
     results = []
 
     for filename in tqdm(image_files, desc='Processing images'):
