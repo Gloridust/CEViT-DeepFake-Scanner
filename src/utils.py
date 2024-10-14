@@ -15,14 +15,20 @@ def train(model, data_loader, criterion, optimizer, device, scaler):
         labels = labels.to(device).float()
 
         optimizer.zero_grad()
-        
-        with autocast():
+
+        if scaler is not None:
+            with autocast():
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
             outputs = model(images)
             loss = criterion(outputs, labels)
-
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+            loss.backward()
+            optimizer.step()
 
         total_loss += loss.item()
 

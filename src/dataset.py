@@ -43,6 +43,11 @@ class FaceDataset(Dataset):
         if train:
             self.transform = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),           # 随机垂直翻转
+                transforms.RandomRotation(degrees=15),     # 随机旋转 ±15 度
+                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
+                transforms.RandomResizedCrop(self.target_size, scale=(0.8, 1.0)),  # 随机裁剪和缩放
+                transforms.RandomGrayscale(p=0.1),         # 以10%的概率将图像转换为灰度
                 self.basic_transform
             ])
         else:

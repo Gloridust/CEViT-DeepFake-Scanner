@@ -11,14 +11,16 @@ from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import random
+import numpy as np
+import time  # 添加时间模块
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
-    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for training')
-    parser.add_argument('--epochs', type=int, default=20, help='Number of epochs to train')
+    parser.add_argument('--batch_size', type=int, default=24, help='Batch size for training')
+    parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train')  # 增加 epoch 数量
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
-    parser.add_argument('--lr', type=float, default=0.0005, help='Learning rate')
+    parser.add_argument('--lr', type=float, default=0.0003, help='Learning rate')  # 调整学习率
 
     args = parser.parse_args()
 
@@ -52,19 +54,44 @@ def main():
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    # 学习率调度器
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    # 定义学习率调度器为 ReduceLROnPlateau
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+
+    # 定义早停参数
+    best_val_loss = np.inf
+    patience = 5            # 早停的耐心值
+    trigger_times = 0
 
     # 开始训练
     for epoch in range(1, args.epochs + 1):
+        start_time = time.time()  # 记录epoch开始时间
+
         train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
-        val_loss = validate(model, val_loader, criterion, device)  # 添加验证步骤
-        scheduler.step()
+        val_loss = validate(model, val_loader, criterion, device)
 
-        print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+        # 更新学习率
+        scheduler.step(val_loss)
 
-        # 保存模型
-        torch.save(model.state_dict(), f'checkpoint_epoch_{epoch}.pth')
+        epoch_duration = time.time() - start_time  # 计算epoch时长
+
+        print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Duration: {epoch_duration:.2f}s")
+
+        # 保存最佳模型
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            trigger_times = 0
+            torch.save(model.state_dict(), 'best_model.pth')
+            print("保存当前最佳模型")
+        else:
+            trigger_times += 1
+            print(f"早停计数器：{trigger_times}")
+            if trigger_times >= patience:
+                print("触发早停，停止训练")
+                break
+
+        # 记录每个 epoch 的验证信息
+        with open('training_log.txt', 'a') as log_file:
+            log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, Duration={epoch_duration:.2f}s\n")
 
 if __name__ == '__main__':
     main()
