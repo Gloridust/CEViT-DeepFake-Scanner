@@ -41,7 +41,7 @@ def main():
     parser.add_argument('--input_dir', type=str, default='/testdata', help='Path to input directory containing images')
     parser.add_argument('--output_csv', type=str, default='./cla_pre.csv', help='Path to output CSV file')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for inference')
-    parser.add_argument('--model_path', type=str, default='./src/checkpoint_epoch_9.pth', help='Path to the trained model')
+    parser.add_argument('--model_path', type=str, default='./src/best_model.pth', help='Path to the trained model')
 
     args = parser.parse_args()
 
@@ -56,7 +56,14 @@ def main():
 
     # 加载模型
     model = FinalModel().to(device)
-    model.load_state_dict(torch.load(args.model_path, map_location=device))
+    checkpoint = torch.load(args.model_path, map_location=device)
+    
+    # 检查是否包含 'model_state_dict'
+    if 'model_state_dict' in checkpoint:
+        model.load_state_dict(checkpoint['model_state_dict'])
+    else:
+        model.load_state_dict(checkpoint)
+    
     model.eval()
 
     # 执行推理并保存结果
