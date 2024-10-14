@@ -1,10 +1,10 @@
-# CE-DF-Scanner
+# CEViT-DeepFake-Scanner
 
-CE-DF-Scanner 是一个基于深度学习的工具，用于检测图像中的AI生成人脸。它结合使用ConvNeXt和EfficientNet模型，以实现高准确度地区分真实和AI生成的人脸图像。
+CEViT-DeepFake-Scanner 是一个基于深度学习的工具，用于检测图像中的AI生成人脸。它结合使用ConvNeXt和EfficientNet模型，以实现高准确度地区分真实和AI生成的人脸图像。
 
 ## 目录
 
-- [CE-DF-Scanner](#ce-df-scanner)
+- [CEViT-DeepFake-Scanner](#CEViT-DeepFake-Scanner)
   - [目录](#目录)
   - [特性](#特性)
   - [安装](#安装)
@@ -31,8 +31,8 @@ CE-DF-Scanner 是一个基于深度学习的工具，用于检测图像中的AI�
 
 1. 克隆仓库：
    ```
-   git clone https://github.com/yourusername/CE-DF-Scanner.git
-   cd CE-DF-Scanner
+   git clone https://github.com/yourusername/CEViT-DeepFake-Scanner.git
+   cd CEViT-DeepFake-Scanner
    ```
 
 2. 创建虚拟环境（可选但推荐）：
@@ -80,7 +80,7 @@ python src/main.py --input_dir 输入图像路径 --output_csv 输出文件路�
 ## 项目结构
 
 ```
-CE-DF-Scanner/
+CEViT-DeepFake-Scanner/
 ├── src/
 │   ├── dataset.py      # 数据集加载和预处理
 │   ├── main.py         # 推理脚本
