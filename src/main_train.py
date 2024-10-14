@@ -11,14 +11,18 @@ from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import random
+import numpy as np
+import time  # 添加时间模块
+import os  # 新增导入，用于处理文件路径
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
-    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for training')
-    parser.add_argument('--epochs', type=int, default=20, help='Number of epochs to train')
+    parser.add_argument('--batch_size', type=int, default=48, help='Batch size for training')
+    parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train')  # 增加 epoch 数量
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
-    parser.add_argument('--lr', type=float, default=0.0005, help='Learning rate')
+    parser.add_argument('--lr', type=float, default=0.0003, help='Learning rate')  # 调整学习率
+    parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume training')  # 新增参数
 
     args = parser.parse_args()
 
@@ -33,7 +37,6 @@ def main():
 
     # 根据设备类型决定是否使用混合精度
     if device.type == 'cuda':
-        from torch.cuda.amp import GradScaler
         scaler = GradScaler()
     else:
         scaler = None
@@ -52,19 +55,79 @@ def main():
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    # 学习率调度器
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    # 定义学习率调度器为 ReduceLROnPlateau
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+
+    # 定义早停参数
+    best_val_loss = np.inf
+    patience = 5            # 早停的耐心值
+    trigger_times = 0
+
+    # 新增：加载检查点以继续训练
+    if args.resume:
+        if os.path.isfile(args.resume):
+            print(f"加载检查点 '{args.resume}'")
+            checkpoint = torch.load(args.resume, map_location=device)
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            start_epoch = checkpoint['epoch'] + 1
+            best_val_loss = checkpoint['best_val_loss']
+            trigger_times = checkpoint['trigger_times']
+            print(f"检查点 '{args.resume}' (epoch {checkpoint['epoch']}) 已加载，继续训练从第 {start_epoch} 轮开始。")
+        else:
+            print(f"未找到检查点 '{args.resume}'，从头开始训练。")
+            start_epoch = 1
+    else:
+        start_epoch = 1  # 默认从第一轮开始
 
     # 开始训练
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(start_epoch, args.epochs + 1):
+        start_time = time.time()  # 记录epoch开始时间
+
         train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
-        val_loss = validate(model, val_loader, criterion, device)  # 添加验证步骤
-        scheduler.step()
+        val_loss = validate(model, val_loader, criterion, device)
 
-        print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+        # 更新学习率
+        scheduler.step(val_loss)
 
-        # 保存模型
-        torch.save(model.state_dict(), f'checkpoint_epoch_{epoch}.pth')
+        epoch_duration = time.time() - start_time  # 计算epoch时长
+
+        print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Duration: {epoch_duration:.2f}s")
+
+        # 保存最佳模型
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            trigger_times = 0
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'best_val_loss': best_val_loss,
+                'trigger_times': trigger_times
+            }, 'best_model.pth')  # 修改保存方式，保存更多状态信息
+            print("保存当前最佳模型")
+        else:
+            trigger_times += 1
+            print(f"早停计数器：{trigger_times}")
+            if trigger_times >= patience:
+                print("触发早停，停止训练")
+                break
+
+        # 记录每个 epoch 的验证信息
+        with open('training_log.txt', 'a') as log_file:
+            log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, Duration={epoch_duration:.2f}s\n")
+
+        # 保存一个检查点，以便之后恢复
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+            'best_val_loss': best_val_loss,
+            'trigger_times': trigger_times
+        }, f'checkpoint_epoch_{epoch}.pth')  # 保存当前轮次的检查点
 
 if __name__ == '__main__':
     main()
