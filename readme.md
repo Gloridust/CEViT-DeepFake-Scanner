@@ -1,6 +1,6 @@
 # CEViT-DeepFake-Scanner
 
-CEViT-DeepFake-Scanner 是一个基于深度学习的工具，用于检测图像中的AI生成人脸。它结合使用ConvNeXt和EfficientNet模型，以实现高准确度地区分真实和AI生成的人脸图像。
+CEViT-DeepFake-Scanner 是一个基于深度学习的工具，用于检测图像中的AI生成人脸。它结合使用ConvNeXt、EfficientNet和ViT模型，以实现高准确度地区分真实和AI生成的人脸图像。
 
 ## 目录
 
@@ -53,7 +53,7 @@ CEViT-DeepFake-Scanner 是一个基于深度学习的工具，用于检测图像
 使用 `main_train.py` 脚本来训练模型：
 
 ```
-python src/main_train.py --data_dir 训练数据路径 --batch_size 8 --epochs 20 --device cuda --lr 0.0005
+python src/main_train.py --data_dir 训练数据路径 --batch_size 24 --epochs 30 --device cuda --lr 0.0001
 ```
 
 参数：
@@ -62,35 +62,35 @@ python src/main_train.py --data_dir 训练数据路径 --batch_size 8 --epochs 2
 - `--epochs`：训练的轮数
 - `--device`：用于训练的设备（cuda、mps或cpu；默认：cuda）
 - `--lr`：学习率（默认：0.0001）
-
+- `--resume`：恢复训练的检查点路径（可选）
 ### 推理
 
 使用 `main.py` 脚本对一组图像进行推理：
 
 ```
-python src/main.py --input_dir 输入图像路径 --output_csv 输出文件路径.csv --device cuda --model_path 模型检查点路径.pth
+python src/main.py --input_dir 输入图像路径 --output_csv 输出文件路径.csv --device cuda --model_path ./src/best_model.pth
 ```
 
 参数：
 - `--input_dir`：包含输入图像的目录路径（默认：/testdata）
 - `--output_csv`：保存输出CSV文件的路径（默认：./cla_pre.csv）
 - `--device`：用于推理的设备（cuda、mps或cpu；默认：cuda）
-- `--model_path`：训练好的模型检查点的路径（默认：./src/checkpoint_epoch_9.pth）
+- `--model_path`：训练好的模型检查点的路径（默认：./src/best_model.pth）
 
 ## 项目结构
 
 ```
 CEViT-DeepFake-Scanner/
 ├── src/
-│   ├── dataset.py      # 数据集加载和预处理
-│   ├── main.py         # 推理脚本
-│   ├── main_train.py   # 训练脚本
-│   ├── models.py       # 模型架构定义
-│   └── utils.py        # 用于训练和评估的实用函数
+│ ├── dataset.py # 数据集加载和预处理
+│ ├── main.py # 推理脚本
+│ ├── main_train.py # 训练脚本
+│ ├── models.py # 模型架构定义
+│ └── utils.py # 用于训练和评估的实用函数
 ├── doc/
-│   └── article.md      # 项目相关文档或文章
-├── requirements.txt    # Python依赖
-└── README.md           # 本文件
+│ └── article.md # 项目相关文档或文章
+├── requirements.txt # Python依赖
+└── README.md # 本文件
 ```
 
 ## 许可证
