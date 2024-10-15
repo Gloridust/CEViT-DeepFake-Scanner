@@ -101,9 +101,9 @@ def main():
     
     # 检查是否包含 'model_state_dict'
     if 'model_state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['model_state_dict'], strict=False)  # 设置 strict=False
+        model.load_state_dict(checkpoint['model_state_dict'])
     else:
-        model.load_state_dict(checkpoint, strict=False)  # 设置 strict=False
+        model.load_state_dict(checkpoint)
     
     model.eval()
 

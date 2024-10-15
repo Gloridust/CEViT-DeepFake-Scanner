@@ -68,7 +68,7 @@ def main():
         if os.path.isfile(args.resume):
             print(f"加载检查点 '{args.resume}'")
             checkpoint = torch.load(args.resume, map_location=device)
-            model.load_state_dict(checkpoint['model_state_dict'], strict=False)  # 设置 strict=False
+            model.load_state_dict(checkpoint['model_state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
             start_epoch = checkpoint['epoch'] + 1
@@ -79,7 +79,7 @@ def main():
             print(f"未找到检查点 '{args.resume}'，从头开始训练。")
             start_epoch = 1
     else:
-        start_epoch = 1  # 默认从��一轮开始
+        start_epoch = 1  # 默认从第一轮开始
 
     # 开始训练
     for epoch in range(start_epoch, args.epochs + 1):
