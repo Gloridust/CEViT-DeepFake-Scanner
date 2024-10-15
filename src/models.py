@@ -25,7 +25,7 @@ class FinalModel(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
 
         # 引入 ViT 模型
-        self.vit = timm.create_model('vit_base_patch16_384', pretrained=True, num_classes=1)
+        self.vit = timm.create_model('vit_small_patch16_384', pretrained=True, num_classes=1)
 
         # 修改组合层，包含 ViT 的输出
         self.combine = nn.Sequential(
