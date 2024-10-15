@@ -14,6 +14,7 @@ import random
 import numpy as np
 import time  # 添加时间模块
 import os  # 新增导入，用于处理文件路径
+from sklearn.utils import class_weight
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
@@ -47,20 +48,39 @@ def main():
     val_size = len(total_dataset) - train_size
     train_dataset, val_dataset = random_split(total_dataset, [train_size, val_size])
 
+    # 打印训练和验证集的标签分布
+    train_labels = [train_dataset.dataset.labels[i] for i in train_dataset.indices]
+    val_labels = [val_dataset.dataset.labels[i] for i in val_dataset.indices]
+    print(f"训练集标签分布: {np.bincount(train_labels)}")  # [真实人脸数量, AI生成人脸数量]
+    print(f"验证集标签分布: {np.bincount(val_labels)}")  # [真实人脸数量, AI生成人脸数量]
+
+    # 计算类别权重
+    class_weights = class_weight.compute_class_weight(
+        class_weight='balanced',
+        classes=np.unique(train_labels),
+        y=train_labels
+    )
+    class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
+    print(f"类别权重: {class_weights}")
+
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     # 模型、损失函数和优化器
     model = FinalModel().to(device)
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    # 使用加权的 BCEWithLogitsLoss
+    criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights[1].unsqueeze(0))  # 为正类设置权重
+    optimizer = optim.Adam(model.parameters(), lr=args.lr * 0.1)  # 调低学习率
+
+    # 冻结子模型的权重
+    model.freeze_submodels()
 
     # 定义学习率调度器为 ReduceLROnPlateau
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
 
     # 定义早停参数
     best_val_loss = np.inf
-    patience = 2
+    patience = 5  # 提高耐心值以允许更多轮训练
     trigger_times = 0
 
     # 新增：加载检查点以继续训练
@@ -79,10 +99,18 @@ def main():
             print(f"未找到检查点 '{args.resume}'，从头开始训练。")
             start_epoch = 1
     else:
-        start_epoch = 1  # 默认从��一轮开始
+        start_epoch = 1  # 默认从一轮开始
 
     # 开始训练
     for epoch in range(start_epoch, args.epochs + 1):
+        # 如果达到一定的epoch数，解冻子模型
+        if epoch == 10:
+            print("解冻子模型的权重，进行联合训练。")
+            model.unfreeze_submodels()
+            # 重新定义优化器以包含新的可训练参数
+            optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr * 0.01)
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+
         start_time = time.time()  # 记录epoch开始时间
 
         train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
