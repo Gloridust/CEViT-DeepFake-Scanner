@@ -28,6 +28,7 @@ class FinalModel(nn.Module):
         # 添加可学习的权重参数
         self.weight_convnext = nn.Parameter(torch.ones(1))
         self.weight_efficientnet = nn.Parameter(torch.ones(1))
+        self.weight_vit = nn.Parameter(torch.ones(1))
 
         # 修改组合层，包含 ViT 的输出
         self.combine = nn.Sequential(
