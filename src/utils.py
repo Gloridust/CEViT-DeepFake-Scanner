@@ -87,4 +87,4 @@ def validate(model, data_loader, criterion, device):
     print(f"F1 Score: {f1:.4f}")
 
     model.train()
-    return avg_loss
+    return avg_loss, accuracy, precision, recall, f1  # 修改返回值

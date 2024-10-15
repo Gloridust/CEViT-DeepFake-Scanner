@@ -86,14 +86,16 @@ def main():
         start_time = time.time()  # 记录epoch开始时间
 
         train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
-        val_loss = validate(model, val_loader, criterion, device)
+        val_loss, accuracy, precision, recall, f1 = validate(model, val_loader, criterion, device)  # 解包新增的返回值
 
         # 更新学习率
         scheduler.step(val_loss)
 
         epoch_duration = time.time() - start_time  # 计算epoch时长
 
-        print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Duration: {epoch_duration:.2f}s")
+        print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
+              f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}, "
+              f"Duration: {epoch_duration:.2f}s")
 
         # 保存最佳模型
         if val_loss < best_val_loss:
@@ -117,7 +119,9 @@ def main():
 
         # 记录每个 epoch 的验证信息
         with open('training_log.txt', 'a') as log_file:
-            log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, Duration={epoch_duration:.2f}s\n")
+            log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, "
+                           f"Accuracy={accuracy:.4f}, Precision={precision:.4f}, Recall={recall:.4f}, "
+                           f"F1 Score={f1:.4f}, Duration={epoch_duration:.2f}s\n")
 
         # 保存一个检查点，以便之后恢复
         torch.save({
