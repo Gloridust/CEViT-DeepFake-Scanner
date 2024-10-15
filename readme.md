@@ -4,7 +4,7 @@ CEViT-DeepFake-Scanner 是一个基于深度学习的工具，用于检测图像
 
 ## 目录
 
-- [CEViT-DeepFake-Scanner](#CEViT-DeepFake-Scanner)
+- [CEViT-DeepFake-Scanner](#cevit-deepfake-scanner)
   - [目录](#目录)
   - [特性](#特性)
   - [安装](#安装)
@@ -16,7 +16,7 @@ CEViT-DeepFake-Scanner 是一个基于深度学习的工具，用于检测图像
 
 ## 特性
 
-- 利用最先进的深度学习模型（ConvNeXt和EfficientNet）
+- 利用最先进的深度学习模型（ConvNeXt、EfficientNet 和 ViT）
 - 支持训练和推理模式
 - 实现数据增强和混合精度训练以提高性能
 - 在验证过程中提供详细的指标（准确率、精确率、召回率、F1分数）
@@ -58,10 +58,10 @@ python src/main_train.py --data_dir 训练数据路径 --batch_size 8 --epochs 2
 
 参数：
 - `--data_dir`：训练数据目录的路径
-- `--batch_size`：训练的批量大小（默认：8）
-- `--epochs`：训练的轮数（默认：20）
+- `--batch_size`：训练的批量大小
+- `--epochs`：训练的轮数
 - `--device`：用于训练的设备（cuda、mps或cpu；默认：cuda）
-- `--lr`：学习率（默认：0.0005）
+- `--lr`：学习率（默认：0.0001）
 
 ### 推理
 
