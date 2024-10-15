@@ -48,12 +48,6 @@ def inference(model, data_loader, device):
 
     return predictions
 
-def adjust_learning_rate(optimizer, epoch, initial_lr):
-    """学习率调度函数，可根据需要进行调整"""
-    lr = initial_lr * (0.1 ** (epoch // 10))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
 def validate(model, data_loader, criterion, device):
     model.eval()
     total_loss = 0

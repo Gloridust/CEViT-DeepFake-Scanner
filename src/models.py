@@ -20,14 +20,12 @@ class FinalModel(nn.Module):
         # 使用更小的模型以减少显存占用
         self.convnext = timm.create_model('convnext_tiny', pretrained=True, num_classes=1)
         self.efficientnet = timm.create_model('efficientnet_b0', pretrained=True, num_classes=1)
+        self.vit = timm.create_model('vit_small_patch16_384', pretrained=True, num_classes=1)
 
         # 添加 Dropout 层
         self.dropout = nn.Dropout(p=0.5)
 
-        # 引入 ViT 模型
-        self.vit = timm.create_model('vit_small_patch16_384', pretrained=True, num_classes=1)
-
-        # 修改组合层，包含 ViT 的输出
+        # 假设每个子模型输出维度为1
         self.combine = nn.Sequential(
             nn.Linear(3, 1),  # 从3个模型输出中组合
             nn.Sigmoid()

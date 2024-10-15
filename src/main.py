@@ -20,7 +20,7 @@ def infer_and_save_results(model, input_dir, output_csv, device):
         ]),
         transforms.Compose([
             transforms.Resize((384, 384)),
-            transforms.functional.hflip,
+            transforms.RandomHorizontalFlip(p=1.0),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])

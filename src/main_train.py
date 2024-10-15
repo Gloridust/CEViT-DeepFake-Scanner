@@ -53,14 +53,20 @@ def main():
     num_negative = len(train_labels) - num_positive
 
     # 计算类别权重
-    pos_weight = torch.tensor([num_negative / num_positive]).to(device)
+    if num_positive > 0:
+        pos_weight = torch.tensor([num_negative / num_positive]).to(device)
+    else:
+        pos_weight = None  # 或设置为一个默认值，例如 torch.tensor([1.0]).to(device)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     # 模型、损失函数和优化器
     model = FinalModel().to(device)
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)  # 修改这里，添加 pos_weight
+    if pos_weight is not None:
+        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)  # 修改这里，添加 pos_weight
+    else:
+        criterion = nn.BCEWithLogitsLoss()  # 不使用 pos_weight
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # 定义学习率调度器为 ReduceLROnPlateau
@@ -116,7 +122,7 @@ def main():
                 'scheduler_state_dict': scheduler.state_dict(),
                 'best_val_loss': best_val_loss,
                 'trigger_times': trigger_times
-            }, 'best_model.pth')  # 修改保存方式，保存更多状态信息
+            }, './src/best_model.pth')  # 修改保存方式，保存更多状态信息
             print("保存当前最佳模型")
         else:
             trigger_times += 1
@@ -126,7 +132,7 @@ def main():
                 break
 
         # 记录每个 epoch 的验证信息
-        with open('training_log.txt', 'a') as log_file:
+        with open('./src/training_log.txt', 'a') as log_file:
             log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, "
                            f"Accuracy={accuracy:.4f}, Precision={precision:.4f}, Recall={recall:.4f}, "
                            f"F1 Score={f1:.4f}, Duration={epoch_duration:.2f}s\n")
