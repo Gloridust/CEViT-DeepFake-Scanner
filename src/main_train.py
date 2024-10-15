@@ -18,7 +18,7 @@ import os  # 新增导入，用于处理文件路径
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
-    parser.add_argument('--batch_size', type=int, default=48, help='Batch size for training')
+    parser.add_argument('--batch_size', type=int, default=24, help='Batch size for training')
     parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train')  # 增加 epoch 数量
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
     parser.add_argument('--lr', type=float, default=0.0003, help='Learning rate')  # 调整学习率
