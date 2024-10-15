@@ -54,21 +54,3 @@ class FinalModel(nn.Module):
 
         output = self.combine(combined)
         return output.squeeze(1)
-
-    def freeze_submodels(self):
-        """冻结子模型的权重"""
-        for param in self.convnext.parameters():
-            param.requires_grad = False
-        for param in self.efficientnet.parameters():
-            param.requires_grad = False
-        for param in self.vit.parameters():
-            param.requires_grad = False
-
-    def unfreeze_submodels(self):
-        """解冻子模型的权重"""
-        for param in self.convnext.parameters():
-            param.requires_grad = True
-        for param in self.efficientnet.parameters():
-            param.requires_grad = True
-        for param in self.vit.parameters():
-            param.requires_grad = True
