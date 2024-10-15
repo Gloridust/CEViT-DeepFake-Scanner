@@ -60,7 +60,7 @@ def main():
 
     # 定义早停参数
     best_val_loss = np.inf
-    patience = 5            # 早停的耐心值
+    patience = 2
     trigger_times = 0
 
     # 新增：加载检查点以继续训练

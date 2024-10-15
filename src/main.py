@@ -10,11 +10,44 @@ from PIL import Image
 from tqdm import tqdm
 
 def infer_and_save_results(model, input_dir, output_csv, device):
-    transform = transforms.Compose([
-        transforms.Resize((384, 384)),  # 修改为384以与训练一致
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 添加归一化
-    ])
+    # 定义测试时的数据增强变换列表
+    tta_transforms = [
+        transforms.Compose([
+            transforms.Resize((384, 384)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        ]),
+        transforms.Compose([
+            transforms.Resize((384, 384)),
+            transforms.functional.hflip,
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        ]),
+        transforms.Compose([
+            transforms.Resize((384, 384)),
+            transforms.Lambda(lambda img: img.rotate(15)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        ]),
+        transforms.Compose([
+            transforms.Resize((384, 384)),
+            transforms.Lambda(lambda img: img.rotate(-15)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        ]),
+        transforms.Compose([
+            transforms.Resize((384, 384)),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        ]),
+        # 可以根据需要添加更多变换
+    ]
 
     image_files = [f for f in os.listdir(input_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
     print(f"扫描到的图片数量: {len(image_files)}")
@@ -22,13 +55,21 @@ def infer_and_save_results(model, input_dir, output_csv, device):
 
     for filename in tqdm(image_files, desc='Processing images'):
         image_path = os.path.join(input_dir, filename)
-        image = Image.open(image_path).convert('RGB')
-        image = transform(image).unsqueeze(0).to(device)
+        original_image = Image.open(image_path).convert('RGB')
+
+        probs = []
 
         with torch.no_grad():
-            output = model(image)
-            prob = torch.sigmoid(output).item()
-            result = 1 if prob > 0.5 else 0  # 1: AI合成, 0: 真实人脸
+            for transform in tta_transforms:
+                augmented_image = transform(original_image)
+                augmented_image = augmented_image.unsqueeze(0).to(device)
+                output = model(augmented_image)
+                prob = torch.sigmoid(output).item()
+                probs.append(prob)
+
+            avg_prob = sum(probs) / len(probs)  # 计算平均概率
+
+            result = 1 if avg_prob > 0.5 else 0  # 1: AI合成, 0: 真实人脸
             results.append((os.path.splitext(filename)[0], result))  # 保存文件名（无扩展名）和结果
 
     # 保存结果到 CSV 文件
