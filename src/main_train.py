@@ -58,8 +58,8 @@ def main():
     else:
         pos_weight = None  # 或设置为一个默认值，例如 torch.tensor([1.0]).to(device)
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
     # 模型、损失函数和优化器
     model = FinalModel().to(device)
