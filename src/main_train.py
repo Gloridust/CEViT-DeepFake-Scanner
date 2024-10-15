@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=24, help='Batch size for training')
     parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train')  # 增加 epoch 数量
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
-    parser.add_argument('--lr', type=float, default=0.0003, help='Learning rate')  # 调整学习率
+    parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')  # 调整学习率
     parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume training')  # 新增参数
 
     args = parser.parse_args()
@@ -47,12 +47,20 @@ def main():
     val_size = len(total_dataset) - train_size
     train_dataset, val_dataset = random_split(total_dataset, [train_size, val_size])
 
+    # 计算训练集中的正负样本数量
+    train_labels = [total_dataset.labels[i] for i in train_dataset.indices]
+    num_positive = sum(train_labels)
+    num_negative = len(train_labels) - num_positive
+
+    # 计算类别权重
+    pos_weight = torch.tensor([num_negative / num_positive]).to(device)
+
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     # 模型、损失函数和优化器
     model = FinalModel().to(device)
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)  # 修改这里，添加 pos_weight
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # 定义学习率调度器为 ReduceLROnPlateau
