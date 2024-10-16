@@ -100,7 +100,7 @@ def main():
     model = FinalModel().to(device)
     checkpoint = torch.load(args.model_path, map_location=device)
     
-    # 检查是否���含 'model_state_dict'
+    # 检查是否包含 'model_state_dict'
     if 'model_state_dict' in checkpoint:
         model.load_state_dict(checkpoint['model_state_dict'])
     else:
