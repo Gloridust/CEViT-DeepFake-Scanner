@@ -6,10 +6,10 @@ from torch import nn, optim
 from torch.utils.data import DataLoader, random_split, WeightedRandomSampler  # 添加 WeightedRandomSampler 导入
 from models import FinalModel
 from dataset import FaceDataset
-from utils import train, validate
+from utils import train, validate, FocalLoss  # 更新导入，包含 FocalLoss
 from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 import random
 import numpy as np
 import time  # 添加时间模块
@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')  # 调整学习率
     parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume training')  # 新增参数
     parser.add_argument('--use_sampler', action='store_true', help='Use WeightedRandomSampler for handling class imbalance')  # 添加是否使用采样器的参数
+    parser.add_argument('--use_focal_loss', action='store_true', help='Use Focal Loss instead of BCEWithLogitsLoss')  # 添加使用 Focal Loss 的参数
 
     args = parser.parse_args()
 
@@ -72,10 +73,14 @@ def main():
 
     # 模型、损失函数和优化器
     model = FinalModel().to(device)
-    if pos_weight is not None:
-        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)  # 修改这里，添加 pos_weight
+    if args.use_focal_loss:
+        criterion = FocalLoss(alpha=1, gamma=2, reduction='mean')  # 使用 Focal Loss
     else:
-        criterion = nn.BCEWithLogitsLoss()  # 不使用 pos_weight
+        if pos_weight is not None:
+            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)  # 使用带权重的 BCE Loss
+        else:
+            criterion = nn.BCEWithLogitsLoss()  # 不使用权重
+
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # 定义学习率调度器为 ReduceLROnPlateau
@@ -83,6 +88,7 @@ def main():
 
     # 定义早停参数
     best_val_loss = np.inf
+    best_val_auc = 0.0  # 添加最佳 ROC-AUC
     patience = 4
     trigger_times = 0
 
@@ -96,6 +102,7 @@ def main():
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
             start_epoch = checkpoint['epoch'] + 1
             best_val_loss = checkpoint['best_val_loss']
+            best_val_auc = checkpoint.get('best_val_auc', 0.0)  # 加载最佳 ROC-AUC
             trigger_times = checkpoint['trigger_times']
             print(f"检查点 '{args.resume}' (epoch {checkpoint['epoch']}) 已加载，继续训练从第 {start_epoch} 轮开始。")
         else:
@@ -109,7 +116,7 @@ def main():
         start_time = time.time()  # 记录epoch开始时间
 
         train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
-        val_loss, accuracy, precision, recall, f1 = validate(model, val_loader, criterion, device)  # 解包新增的返回值
+        val_loss, accuracy, precision, recall, f1, val_auc = validate(model, val_loader, criterion, device)  # 修改 validate 以返回 val_auc
 
         # 更新学习率
         scheduler.step(val_loss)
@@ -117,12 +124,12 @@ def main():
         epoch_duration = time.time() - start_time  # 计算epoch时长
 
         print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
-              f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}, "
-              f"Duration: {epoch_duration:.2f}s")
+              f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, "
+              f"F1 Score: {f1:.4f}, ROC-AUC: {val_auc:.4f}, Duration: {epoch_duration:.2f}s")
 
         # 保存最佳模型
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_auc > best_val_auc:
+            best_val_auc = val_auc
             trigger_times = 0
             torch.save({
                 'epoch': epoch,
@@ -130,9 +137,10 @@ def main():
                 'optimizer_state_dict': optimizer.state_dict(),
                 'scheduler_state_dict': scheduler.state_dict(),
                 'best_val_loss': best_val_loss,
+                'best_val_auc': best_val_auc,
                 'trigger_times': trigger_times
-            }, './src/best_model.pth')  # 修改保存方式，保存更多状态信息
-            print("保存当前最佳模型")
+            }, './src/best_model.pth')  # 保存更多状态信息
+            print("保存当前最佳模型 (基于 ROC-AUC)")
         else:
             trigger_times += 1
             print(f"早停计数器：{trigger_times}")
@@ -144,7 +152,7 @@ def main():
         with open('./src/training_log.txt', 'a') as log_file:
             log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, "
                            f"Accuracy={accuracy:.4f}, Precision={precision:.4f}, Recall={recall:.4f}, "
-                           f"F1 Score={f1:.4f}, Duration={epoch_duration:.2f}s\n")
+                           f"F1 Score={f1:.4f}, ROC-AUC={val_auc:.4f}, Duration={epoch_duration:.2f}s\n")
 
         # 保存一个检查点，以便之后恢复
         torch.save({
@@ -153,6 +161,7 @@ def main():
             'optimizer_state_dict': optimizer.state_dict(),
             'scheduler_state_dict': scheduler.state_dict(),
             'best_val_loss': best_val_loss,
+            'best_val_auc': best_val_auc,
             'trigger_times': trigger_times
         }, f'checkpoint_epoch_{epoch}.pth')  # 保存当前轮次的检查点
 
