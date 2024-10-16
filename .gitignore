@@ -162,7 +162,6 @@ cython_debug/
 *.jpg
 /data/*.png
 data_min/
-*.txt
 .DS_Store
 .vscode
 *.pth
