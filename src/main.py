@@ -82,7 +82,7 @@ def main():
     parser.add_argument('--input_dir', type=str, default='/testdata', help='Path to input directory containing images')
     parser.add_argument('--output_csv', type=str, default='./cla_pre.csv', help='Path to output CSV file')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for inference')
-    parser.add_argument('--model_path', type=str, default='./src/best_model.pth', help='Path to the trained model')
+    parser.add_argument('--model_path', type=str, default='./src/checkpoints/best_model.pth', help='Path to the trained model')  # 修改默认模型路径
     parser.add_argument('--threshold', type=float, default=0.5, help='Threshold for classification')  # 添加阈值参数
 
     args = parser.parse_args()

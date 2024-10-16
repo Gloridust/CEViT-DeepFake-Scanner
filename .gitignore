@@ -169,3 +169,5 @@ data_min.zip
 /testdata/
 cla_pre.csv
 data.7z
+src/checkpoints/
+src/training_log.txt

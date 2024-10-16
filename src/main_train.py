@@ -147,7 +147,7 @@ def main():
                 'best_val_loss': best_val_loss,
                 'best_val_auc': best_val_auc,
                 'trigger_times': trigger_times
-            }, './src/best_model.pth')  # 保存更多状态信息
+            }, './src/checkpoints/best_model.pth')
             print("保存当前最佳模型 (基于 ROC-AUC)")
         else:
             trigger_times += 1
@@ -171,7 +171,7 @@ def main():
             'best_val_loss': best_val_loss,
             'best_val_auc': best_val_auc,
             'trigger_times': trigger_times
-        }, f'checkpoint_epoch_{epoch}.pth')  # 保存当前轮次的检查点
+        }, f'./src/checkpoints/checkpoint_epoch_{epoch}.pth')
 
 if __name__ == '__main__':
     main()
