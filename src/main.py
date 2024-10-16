@@ -9,7 +9,7 @@ from torchvision import transforms
 from PIL import Image
 from tqdm import tqdm
 
-def infer_and_save_results(model, input_dir, output_csv, device, threshold=0.5):
+def infer_and_save_results(model, input_dir, output_csv, device, threshold):
     # 定义测试时的数据增强变换列表
     tta_transforms = [
         transforms.Compose([
@@ -100,7 +100,7 @@ def main():
     model = FinalModel().to(device)
     checkpoint = torch.load(args.model_path, map_location=device)
     
-    # 检查是否包含 'model_state_dict'
+    # 检查是否���含 'model_state_dict'
     if 'model_state_dict' in checkpoint:
         model.load_state_dict(checkpoint['model_state_dict'])
     else:
