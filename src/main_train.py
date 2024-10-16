@@ -51,12 +51,20 @@ def main():
 
     # 计算训练集中的正负样本数量
     train_labels = [total_dataset.labels[i] for i in train_dataset.indices]
-    num_positive = sum(train_labels)
-    num_negative = len(train_labels) - num_positive
+    val_labels = [total_dataset.labels[i] for i in val_dataset.indices]
+
+    num_train_positive = sum(train_labels)
+    num_train_negative = len(train_labels) - num_train_positive
+    num_val_positive = sum(val_labels)
+    num_val_negative = len(val_labels) - num_val_positive
+
+    # 打印训练和验证集的样本数量
+    print(f"训练集样本数量: 正样本={num_train_positive}, 负样本={num_train_negative}")
+    print(f"验证集样本数量: 正样本={num_val_positive}, 负样本={num_val_negative}")
 
     # 计算类别权重
-    if num_positive > 0:
-        pos_weight = torch.tensor([num_negative / num_positive]).to(device)
+    if num_train_positive > 0:
+        pos_weight = torch.tensor([num_train_negative / num_train_positive]).to(device)
     else:
         pos_weight = None  # 或设置为一个默认值，例如 torch.tensor([1.0]).to(device)
 
