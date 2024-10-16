@@ -8,7 +8,6 @@ from models import FinalModel
 from torchvision import transforms
 from PIL import Image
 from tqdm import tqdm
-from utils import find_best_threshold
 
 def infer_and_save_results(model, input_dir, output_csv, device, threshold):
     # 定义测试时的数据增强变换列表
@@ -65,7 +64,7 @@ def infer_and_save_results(model, input_dir, output_csv, device, threshold):
                 augmented_image = transform(original_image)
                 augmented_image = augmented_image.unsqueeze(0).to(device)
                 output = model(augmented_image)
-                prob = torch.sigmoid(output).item()  # 保留 sigmoid 用于概率
+                prob = torch.sigmoid(output).item()
                 probs.append(prob)
 
             avg_prob = sum(probs) / len(probs)  # 计算平均概率
@@ -101,6 +100,7 @@ def main():
     model = FinalModel().to(device)
     checkpoint = torch.load(args.model_path, map_location=device)
     
+    # 检查是否包含 'model_state_dict'
     if 'model_state_dict' in checkpoint:
         model.load_state_dict(checkpoint['model_state_dict'])
     else:
@@ -108,21 +108,8 @@ def main():
     
     model.eval()
 
-    # 使用验证集找到最佳阈值
-    # 假设有一个验证函数
-    val_labels, val_probs = get_validation_data()  # 需要实现
-    best_threshold = find_best_threshold(val_labels, val_probs)
-    print(f"最佳阈值: {best_threshold:.4f}")
-
     # 执行推理并保存结果
-    infer_and_save_results(model, args.input_dir, args.output_csv, device, threshold=best_threshold)
-
-def get_validation_data():
-    # 实现获取验证集标签和概率的函数
-    # 这里假设您有一个函数或数据来源来获取验证集的标签和模型预测的概率
-    # 例如，从验证集加载器中获取
-    # 需要根据您的具体情况进行实现
-    raise NotImplementedError("请实现 get_validation_data 函数以返回验证集的标签和预测概率。")
+    infer_and_save_results(model, args.input_dir, args.output_csv, device, threshold=args.threshold)  # 传递阈值参数
 
 if __name__ == '__main__':
     main()

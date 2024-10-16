@@ -5,7 +5,7 @@ import torch.nn as nn
 from tqdm import tqdm
 from torch.cuda.amp import autocast  # 修正导入路径
 import numpy as np
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve  # 添加 roc_curve
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score  # 添加 roc_auc_score
 
 # 添加 Focal Loss 实现
 import torch.nn.functional as F
@@ -90,7 +90,7 @@ def validate(model, data_loader, criterion, device):
             loss = criterion(outputs, labels)
 
             total_loss += loss.item()
-            preds = torch.sigmoid(outputs).cpu().numpy()  # 保留 sigmoid 用于计算概率
+            preds = torch.sigmoid(outputs).cpu().numpy()
             all_probs.extend(preds)
             all_preds.extend((preds > 0.5).astype(int))
             all_labels.extend(labels.cpu().numpy())
