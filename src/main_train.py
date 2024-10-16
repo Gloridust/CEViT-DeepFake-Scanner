@@ -70,11 +70,11 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # 定义学习率调度器为 ReduceLROnPlateau
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=4, verbose=True)
 
     # 定义早停参数
     best_val_loss = np.inf
-    patience = 2
+    patience = 4
     trigger_times = 0
 
     # 新增：加载检查点以继续训练

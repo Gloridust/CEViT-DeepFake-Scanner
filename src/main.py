@@ -9,7 +9,7 @@ from torchvision import transforms
 from PIL import Image
 from tqdm import tqdm
 
-def infer_and_save_results(model, input_dir, output_csv, device):
+def infer_and_save_results(model, input_dir, output_csv, device, threshold=0.5):
     # 定义测试时的数据增强变换列表
     tta_transforms = [
         transforms.Compose([
@@ -69,7 +69,7 @@ def infer_and_save_results(model, input_dir, output_csv, device):
 
             avg_prob = sum(probs) / len(probs)  # 计算平均概率
 
-            result = 1 if avg_prob > 0.5 else 0  # 1: AI合成, 0: 真实人脸
+            result = 1 if avg_prob > threshold else 0  # 使用可调节的阈值
             results.append((os.path.splitext(filename)[0], result))  # 保存文件名（无扩展名）和结果
 
     # 保存结果到 CSV 文件
@@ -83,6 +83,7 @@ def main():
     parser.add_argument('--output_csv', type=str, default='./cla_pre.csv', help='Path to output CSV file')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for inference')
     parser.add_argument('--model_path', type=str, default='./src/best_model.pth', help='Path to the trained model')
+    parser.add_argument('--threshold', type=float, default=0.5, help='Threshold for classification')  # 添加阈值参数
 
     args = parser.parse_args()
 
@@ -108,7 +109,7 @@ def main():
     model.eval()
 
     # 执行推理并保存结果
-    infer_and_save_results(model, args.input_dir, args.output_csv, device)
+    infer_and_save_results(model, args.input_dir, args.output_csv, device, threshold=args.threshold)  # 传递阈值参数
 
 if __name__ == '__main__':
     main()
