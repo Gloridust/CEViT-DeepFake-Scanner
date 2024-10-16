@@ -45,12 +45,15 @@ def train(model, data_loader, criterion, optimizer, device, scaler):
                 loss = criterion(outputs, labels)
 
             scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)  # 解缩梯度以进行裁剪
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # 添加梯度裁剪
             scaler.step(optimizer)
             scaler.update()
         else:
             outputs = model(images)
             loss = criterion(outputs, labels)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # 添加梯度裁剪
             optimizer.step()
 
         total_loss += loss.item()
