@@ -1,8 +1,9 @@
 torch>=1.12.0
 torchvision
-timm
+timm>=0.4.12
 tqdm
 scikit-learn
 pandas
 numpy
 Pillow
+

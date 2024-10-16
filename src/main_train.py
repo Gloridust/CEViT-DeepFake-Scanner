@@ -14,6 +14,15 @@ import random
 import numpy as np
 import time  # 添加时间模块
 import os  # 新增导入，用于处理文件路径
+from sklearn.model_selection import StratifiedShuffleSplit
+from torch.optim.lr_scheduler import CosineAnnealingLR
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
@@ -25,8 +34,16 @@ def main():
     parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume training')  # 新增参数
     parser.add_argument('--use_sampler', action='store_true', help='Use WeightedRandomSampler for handling class imbalance')  # 添加是否使用采样器的参数
     parser.add_argument('--use_focal_loss', action='store_true', help='Use Focal Loss instead of BCEWithLogitsLoss')  # 添加使用 Focal Loss 的参数
+    parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')  # 添加种子参数
+    parser.add_argument('--num_workers', type=int, default=8, help='Number of workers for data loading')  # 添加 num_workers 参数
 
     args = parser.parse_args()
+
+    set_seed(args.seed)  # 设置种子
+
+    # 添加检查，防止同时使用 sampler 和 focal loss
+    if args.use_sampler and args.use_focal_loss:
+        print("警告：同时使用 WeightedRandomSampler 和 Focal Loss 可能导致过度处理类别不平衡。建议选择其中一种方法。")
 
     if args.device == 'cuda' and not torch.cuda.is_available():
         print("CUDA is not available. Switching to CPU.")
@@ -45,9 +62,11 @@ def main():
 
     # 数据集和数据加载器
     total_dataset = FaceDataset(args.data_dir, train=True)
-    train_size = int(0.8 * len(total_dataset))
-    val_size = len(total_dataset) - train_size
-    train_dataset, val_dataset = random_split(total_dataset, [train_size, val_size])
+    labels = total_dataset.labels
+    sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+    for train_idx, val_idx in sss.split(np.zeros(len(labels)), labels):
+        train_dataset = torch.utils.data.Subset(total_dataset, train_idx)
+        val_dataset = torch.utils.data.Subset(total_dataset, val_idx)
 
     # 计算训练集中的正负样本数量
     train_labels = [total_dataset.labels[i] for i in train_dataset.indices]
@@ -62,37 +81,39 @@ def main():
     print(f"训练集样本数量: 正样本={num_train_positive}, 负样本={num_train_negative}")
     print(f"验证集样本数量: 正样本={num_val_positive}, 负样本={num_val_negative}")
 
-    # 计算类别权重
-    if num_train_positive > 0:
+    # 计算类别权重，添加除零检查
+    if num_train_positive > 0 and num_train_negative > 0:
         pos_weight = torch.tensor([num_train_negative / num_train_positive]).to(device)
     else:
         pos_weight = None  # 或设置为一个默认值，例如 torch.tensor([1.0]).to(device)
+        print("警告：训练集中某个类别的样本数量为零，pos_weight 未设置。")
 
     if args.use_sampler:
         class_counts = np.bincount(train_labels)
         class_weights = 1. / class_counts
         samples_weights = [class_weights[label] for label in train_labels]
         sampler = WeightedRandomSampler(weights=samples_weights, num_samples=len(samples_weights), replacement=True)
-        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=8)
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=args.num_workers)
     else:
-        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
     # 模型、损失函数和优化器
     model = FinalModel().to(device)
+    print(f"Combined feature size: {model.convnext.num_features + model.efficientnet.num_features + model.vit.num_features}")
     if args.use_focal_loss:
         criterion = FocalLoss(alpha=1, gamma=2, reduction='mean')  # 使用 Focal Loss
     else:
         if pos_weight is not None:
-            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)  # 使用带权重的 BCE Loss
+            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)  # 使用带权重的 BCEWithLogitsLoss
         else:
-            criterion = nn.BCEWithLogitsLoss()  # 不使用权重
+            criterion = nn.BCEWithLogitsLoss()  # 使用 BCEWithLogitsLoss
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    # 定义学习率调度器为 ReduceLROnPlateau
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=4, verbose=True)
+    # 改用 CosineAnnealingLR 作为学习率调度器
+    scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # 定义早停参数
     best_val_loss = np.inf
@@ -127,7 +148,7 @@ def main():
         val_loss, accuracy, precision, recall, f1, val_auc = validate(model, val_loader, criterion, device)  # 修改 validate 以返回 val_auc
 
         # 更新学习率
-        scheduler.step(val_loss)
+        scheduler.step()
 
         epoch_duration = time.time() - start_time  # 计算epoch时长
 
