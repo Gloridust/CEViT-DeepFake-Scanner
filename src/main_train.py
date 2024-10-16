@@ -3,7 +3,7 @@
 import argparse
 import torch
 from torch import nn, optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, WeightedRandomSampler  # 添加 WeightedRandomSampler 导入
 from models import FinalModel
 from dataset import FaceDataset
 from utils import train, validate
@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
     parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')  # 调整学习率
     parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume training')  # 新增参数
+    parser.add_argument('--use_sampler', action='store_true', help='Use WeightedRandomSampler for handling class imbalance')  # 添加是否使用采样器的参数
 
     args = parser.parse_args()
 
@@ -58,7 +59,15 @@ def main():
     else:
         pos_weight = None  # 或设置为一个默认值，例如 torch.tensor([1.0]).to(device)
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
+    if args.use_sampler:
+        class_counts = np.bincount(train_labels)
+        class_weights = 1. / class_counts
+        samples_weights = [class_weights[label] for label in train_labels]
+        sampler = WeightedRandomSampler(weights=samples_weights, num_samples=len(samples_weights), replacement=True)
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=8)
+    else:
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
+
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
     # 模型、损失函数和优化器
