@@ -4,15 +4,6 @@ import torch
 from torch import nn
 import timm
 
-class AugmentInputsNetwork(nn.Module):
-    def __init__(self, model):
-        super(AugmentInputsNetwork, self).__init__()
-        self.model = model
-
-    def forward(self, x):
-        # 移除额外的卷积层，因为我们已经在数据集中添加了标准化
-        return self.model(x)
-
 class FinalModel(nn.Module):
     def __init__(self):
         super(FinalModel, self).__init__()
@@ -25,11 +16,8 @@ class FinalModel(nn.Module):
         # 添加 Dropout 层
         self.dropout = nn.Dropout(p=0.5)
 
-        # 假设每个子模型输出维度为1
-        self.combine = nn.Sequential(
-            nn.Linear(3, 1),  # 从3个模型输出中组合
-            nn.Sigmoid()
-        )
+        # 修改组合层以适应 CrossEntropyLoss
+        self.combine = nn.Linear(3, 2)  # 从3个模型输出中组合，输出2个类别
 
     def forward(self, x):
         pred1 = self.convnext(x)
@@ -43,4 +31,4 @@ class FinalModel(nn.Module):
         combined = self.dropout(combined)
 
         output = self.combine(combined)
-        return output.squeeze(1)
+        return output  # 移除 squeeze 操作

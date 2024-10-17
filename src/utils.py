@@ -7,27 +7,7 @@ from torch.cuda.amp import autocast  # 修正导入路径
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve  # 添加 roc_auc_score 和 roc_curve
 
-# 添加 Focal Loss 实现
-import torch.nn.functional as F
-
-class FocalLoss(nn.Module):
-    def __init__(self, alpha=1, gamma=2, reduction='mean'):
-        super(FocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        self.reduction = reduction
-    
-    def forward(self, inputs, targets):
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
-        pt = torch.exp(-BCE_loss)  # pt 是预测正确的概率
-        F_loss = self.alpha * (1 - pt) ** self.gamma * BCE_loss
-
-        if self.reduction == 'mean':
-            return F_loss.mean()
-        elif self.reduction == 'sum':
-            return F_loss.sum()
-        else:
-            return F_loss
+# 移除 FocalLoss 实现
 
 def train(model, data_loader, criterion, optimizer, device, scaler):
     model.train()
@@ -35,7 +15,7 @@ def train(model, data_loader, criterion, optimizer, device, scaler):
 
     for images, labels in tqdm(data_loader, desc='Training'):
         images = images.to(device)
-        labels = labels.to(device).float()
+        labels = labels.to(device)  # 保持标签为 long 类型
 
         optimizer.zero_grad()
 
@@ -68,9 +48,9 @@ def inference(model, data_loader, device):
     with torch.no_grad():
         for images, _ in tqdm(data_loader, desc='Inference'):
             images = images.to(device)
-            outputs = model(images)  # [batch_size]
-            preds = torch.sigmoid(outputs)  # [batch_size]
-            predictions.extend(preds.cpu().numpy())
+            outputs = model(images)  # [batch_size, 2]
+            probs = torch.softmax(outputs, dim=1)[:, 1]  # 获取第二类的概率
+            predictions.extend(probs.cpu().numpy())
 
     return predictions
 
@@ -84,15 +64,16 @@ def validate(model, data_loader, criterion, device):
     with torch.no_grad():
         for images, labels in tqdm(data_loader, desc='Validating'):
             images = images.to(device)
-            labels = labels.to(device).float()
+            labels = labels.to(device)
 
             outputs = model(images)
             loss = criterion(outputs, labels)
 
             total_loss += loss.item()
-            preds = torch.sigmoid(outputs).cpu().numpy()
-            all_probs.extend(preds)
-            all_preds.extend((preds > 0.5).astype(int))
+            probs = torch.softmax(outputs, dim=1)[:, 1].cpu().numpy()  # 获取第二类的概率
+            preds = np.argmax(outputs.cpu().numpy(), axis=1)
+            all_probs.extend(probs)
+            all_preds.extend(preds)
             all_labels.extend(labels.cpu().numpy())
 
     avg_loss = total_loss / len(data_loader)
@@ -112,9 +93,3 @@ def validate(model, data_loader, criterion, device):
 
     model.train()
     return avg_loss, accuracy, precision, recall, f1, roc_auc  # 修改返回值，包含 ROC-AUC
-
-def find_best_threshold(labels, probs):
-    fpr, tpr, thresholds = roc_curve(labels, probs)
-    youden_index = tpr - fpr
-    best_threshold = thresholds[np.argmax(youden_index)]
-    return best_threshold
