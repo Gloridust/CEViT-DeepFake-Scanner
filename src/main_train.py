@@ -54,6 +54,15 @@ def main():
     print(f"训练集样本数量: 正样本={num_train_positive}, 负样本={num_train_negative}")
     print(f"验证集样本数量: 正样本={num_val_positive}, 负样本={num_val_negative}")
 
+    # 计算类别权重
+    total = num_train_positive + num_train_negative
+    weight0 = total / (2 * num_train_negative)
+    weight1 = total / (2 * num_train_positive)
+    class_weights = torch.tensor([weight0, weight1], device=device)
+
+    # 使用加权的 CrossEntropyLoss
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
+
     # 移除类别权重相关代码
     # if num_train_positive > 0:
     #     pos_weight = torch.tensor([num_train_negative / num_train_positive]).to(device)
@@ -74,7 +83,6 @@ def main():
 
     # 模型、损失函数和优化器
     model = FinalModel().to(device)
-    criterion = nn.CrossEntropyLoss()  # 使用 CrossEntropyLoss
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
