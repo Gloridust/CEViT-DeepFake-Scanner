@@ -64,7 +64,8 @@ def infer_and_save_results(model, input_dir, output_csv, device, threshold):
                 augmented_image = transform(original_image)
                 augmented_image = augmented_image.unsqueeze(0).to(device)
                 output = model(augmented_image)
-                prob = torch.sigmoid(output).item()
+                # prob = torch.sigmoid(output).item()
+                prob = torch.softmax(output, dim=1)[:, 1].item()  # 使用 softmax 并获取第二类的概率
                 probs.append(prob)
 
             avg_prob = sum(probs) / len(probs)  # 计算平均概率
