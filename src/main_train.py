@@ -27,8 +27,6 @@ def main():
 
     args = parser.parse_args()
 
-    # ... existing device setup ...
-
     device = torch.device(args.device)
 
     # 根据设备类型决定是否使用混合精度
