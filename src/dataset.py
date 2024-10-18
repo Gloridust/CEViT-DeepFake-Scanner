@@ -66,7 +66,7 @@ class FaceDataset(Dataset):
         # 应用变换
         image = self.transform(image)
 
-        # 确保标签为 float32 类型的张量
-        label = torch.tensor(label, dtype=torch.float32)
+        # 确保标签为 long 类型的张量
+        label = torch.tensor(label, dtype=torch.long)
 
         return image, label
