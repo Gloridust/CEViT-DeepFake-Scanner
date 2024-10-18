@@ -23,7 +23,6 @@ def main():
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
     parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
     parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume training')
-    # 移除 --use_sampler 和 --use_focal_loss 参数
 
     args = parser.parse_args()
 
@@ -62,21 +61,6 @@ def main():
 
     # 使用加权的 CrossEntropyLoss
     criterion = nn.CrossEntropyLoss(weight=class_weights)
-
-    # 移除类别权重相关代码
-    # if num_train_positive > 0:
-    #     pos_weight = torch.tensor([num_train_negative / num_train_positive]).to(device)
-    # else:
-    #     pos_weight = None
-
-    # if args.use_sampler:
-    #     class_counts = np.bincount(train_labels)
-    #     class_weights = 1. / class_counts
-    #     samples_weights = [class_weights[label] for label in train_labels]
-    #     sampler = WeightedRandomSampler(weights=samples_weights, num_samples=len(samples_weights), replacement=True)
-    #     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=8)
-    # else:
-    #     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8)
