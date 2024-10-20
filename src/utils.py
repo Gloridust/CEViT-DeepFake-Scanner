@@ -2,12 +2,30 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from tqdm import tqdm
 from torch.cuda.amp import autocast  # 修正导入路径
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve  # 添加 roc_auc_score 和 roc_curve
 
 # 移除 FocalLoss 实现
+
+def mixup_data(x, y, alpha=0.4):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1
+
+    batch_size = x.size()[0]
+    index = torch.randperm(batch_size).to(x.device)
+
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 def train(model, data_loader, criterion, optimizer, device, scaler):
     model.train()
@@ -17,12 +35,16 @@ def train(model, data_loader, criterion, optimizer, device, scaler):
         images = images.to(device)
         labels = labels.to(device)  # 保持标签为 long 类型
 
+        # 应用 MixUp
+        mixed_images, targets_a, targets_b, lam = mixup_data(images, labels)
+        mixed_images, targets_a, targets_b = map(torch.autograd.Variable, (mixed_images, targets_a, targets_b))
+
         optimizer.zero_grad()
 
         if scaler is not None:
             with autocast():
-                outputs = model(images)
-                loss = criterion(outputs, labels)
+                outputs = model(mixed_images)
+                loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)  # 解缩梯度以进行裁剪
@@ -30,8 +52,8 @@ def train(model, data_loader, criterion, optimizer, device, scaler):
             scaler.step(optimizer)
             scaler.update()
         else:
-            outputs = model(images)
-            loss = criterion(outputs, labels)
+            outputs = model(mixed_images)
+            loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # 添加梯度裁剪
             optimizer.step()

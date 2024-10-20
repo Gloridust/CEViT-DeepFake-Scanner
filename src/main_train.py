@@ -59,10 +59,17 @@ def main():
     weight1 = total / (2 * num_train_positive)
     class_weights = torch.tensor([weight0, weight1], device=device)
 
+    # 创建样本权重
+    class_sample_counts = np.bincount(train_labels)
+    weights = 1. / class_sample_counts
+    samples_weights = np.array([weights[label] for label in train_labels])
+    sampler = WeightedRandomSampler(weights=samples_weights, num_samples=len(samples_weights), replacement=True)
+
     # 使用加权的 CrossEntropyLoss
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
+    # 使用 WeightedRandomSampler 创建训练数据加载器
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=8)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
     # 模型、损失函数和优化器
