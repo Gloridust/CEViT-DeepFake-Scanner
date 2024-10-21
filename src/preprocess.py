@@ -22,7 +22,7 @@ def preprocess_images(input_dir, output_dir, device):
     image_files = [f for f in os.listdir(input_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
     print(f"扫描到的图片数量: {len(image_files)}")
 
-    batch_size = 16  # 设置批处理大小，根据 GPU 显存调整
+    batch_size = 128  # 设置批处理大小，根据 GPU 显存调整
     resized_size = (384, 384)  # 统一调整尺寸
 
     for i in tqdm(range(0, len(image_files), batch_size), desc='预处理图片'):
