@@ -20,24 +20,17 @@ class FinalModel(nn.Module):
             eff_dim = self.efficientnet(dummy_input).shape[1]  # 通常是1408
             vit_dim = self.vit(dummy_input).shape[1]  # 通常是384
         
-        total_dim = conv_dim + eff_dim + vit_dim  # 2816
-        
-        # 特征融合层 - 渐进式降维
+        # 特征融合层
         self.fusion = nn.Sequential(
-            # 第一层：保持较大维度以保留特征信息
-            nn.Linear(total_dim, 1024),
+            nn.Linear(conv_dim + eff_dim + vit_dim, 512),
+            nn.BatchNorm1d(512),  # 添加这行
             nn.ReLU(),
             nn.Dropout(0.5),
-            # 第二层：中等维度的特征整合
-            nn.Linear(1024, 512),
-            nn.ReLU(),
-            nn.Dropout(0.4),
-            # 第三层：进一步提取关键特征
-            nn.Linear(512, 256),
+            nn.Linear(512, 128),
+            nn.BatchNorm1d(128),  # 添加这行
             nn.ReLU(),
             nn.Dropout(0.3),
-            # 最终分类层
-            nn.Linear(256, 2)
+            nn.Linear(128, 2)
         )
         
         # 初始时冻结基础模型参数

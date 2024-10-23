@@ -87,29 +87,57 @@ def main():
     patience = 4
     trigger_times = 0
 
+    # 修改加载检查点的部分
+    # 修改训练策略
+    num_epochs_phase1 = 5  # 第一阶段：只训练融合层
+    num_epochs_phase2 = args.epochs - num_epochs_phase1  # 第二阶段：微调整个模型
+
     # 新增：加载检查点以继续训练
     if args.resume:
         if os.path.isfile(args.resume):
             print(f"加载检查点 '{args.resume}'")
             checkpoint = torch.load(args.resume, map_location=device)
+            
+            # 首先加载模型状态
             model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            
             start_epoch = checkpoint['epoch'] + 1
-            best_val_loss = checkpoint['best_val_loss']
-            best_val_auc = checkpoint.get('best_val_auc', 0.0)  # 加载最佳 ROC-AUC
-            trigger_times = checkpoint['trigger_times']
+            
+            # 根据当前epoch判断训练阶段
+            if start_epoch <= num_epochs_phase1:
+                # 第一阶段：只训练融合层
+                model.freeze_base_models()
+                optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+                scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs_phase1, eta_min=1e-6)
+            else:
+                # 第二阶段：差异化学习率
+                model.unfreeze_base_models()
+                optimizer = optim.Adam([
+                    {'params': model.fusion.parameters(), 'lr': args.lr},
+                    {'params': model.convnext.parameters(), 'lr': args.lr * 0.1},
+                    {'params': model.efficientnet.parameters(), 'lr': args.lr * 0.1},
+                    {'params': model.vit.parameters(), 'lr': args.lr * 0.1}
+                ])
+                scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs_phase2, eta_min=1e-7)
+            
+            try:
+                # 尝试加载优化器状态
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            except (ValueError, KeyError) as e:
+                print(f"警告: 无法加载优化器或调度器状态，将使用新的初始化状态。错误: {str(e)}")
+            
+            best_val_loss = checkpoint.get('best_val_loss', np.inf)
+            best_val_auc = checkpoint.get('best_val_auc', 0.0)
+            trigger_times = checkpoint.get('trigger_times', 0)
+            
             print(f"检查点 '{args.resume}' (epoch {checkpoint['epoch']}) 已加载，继续训练从第 {start_epoch} 轮开始。")
         else:
-            print(f"未找到检查点 '{args.resume}'，从���开始训练。")
+            print(f"未找到检查点 '{args.resume}'，从头开始训练。")
             start_epoch = 1
     else:
         start_epoch = 1  # 默认从第一轮开始
 
-    # 修改训练策略
-    num_epochs_phase1 = 5  # 第一阶段：只训练融合层
-    num_epochs_phase2 = args.epochs - num_epochs_phase1  # 第二阶段：微调整个模型
-    
     # 第一阶段：冻结基础模型，只训练融合层
     model.freeze_base_models()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
