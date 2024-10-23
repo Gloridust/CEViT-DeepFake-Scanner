@@ -53,15 +53,15 @@ def preprocess_images(input_dir, output_dir, device):
             if original_image is None:
                 continue  # 跳过无法加载的图像
 
-            if box is not None and len(box) > 0:
-                # 只保存第一张人脸的裁剪图像
-                single_box = box[0]
-                # 计算裁剪区域
-                left, top, right, bottom = [int(coord) for coord in single_box]
-                cropped_face = original_image.crop((left, top, right, bottom))
-                # 保存裁剪后的人脸图像
-                output_path = os.path.join(output_dir, filename)
-                cropped_face.save(output_path)
+            if box is not None:
+                for j, single_box in enumerate(box):
+                    # 计算裁剪区域
+                    left, top, right, bottom = [int(coord) for coord in single_box]
+                    cropped_face = original_image.crop((left, top, right, bottom))
+                    # 保存裁剪后的人脸图像
+                    base_name, ext = os.path.splitext(filename)
+                    output_path = os.path.join(output_dir, f"{base_name}_face_{j}{ext}")
+                    cropped_face.save(output_path)
             else:
                 # 未检测到人脸时，复制原始图片
                 original_output_path = os.path.join(output_dir, filename)
