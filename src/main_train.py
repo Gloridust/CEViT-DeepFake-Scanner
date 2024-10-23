@@ -16,6 +16,7 @@ import time
 import os
 
 def main():
+    # 在 main() 函数开始处添加日志初始化
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
     parser.add_argument('--batch_size', type=int, default=24, help='Batch size for training')
@@ -100,13 +101,86 @@ def main():
             trigger_times = checkpoint['trigger_times']
             print(f"检查点 '{args.resume}' (epoch {checkpoint['epoch']}) 已加载，继续训练从第 {start_epoch} 轮开始。")
         else:
-            print(f"未找到检查点 '{args.resume}'，从头开始训练。")
+            print(f"未找到检查点 '{args.resume}'，从���开始训练。")
             start_epoch = 1
     else:
         start_epoch = 1  # 默认从第一轮开始
 
-    # 开始训练
-    for epoch in range(start_epoch, args.epochs + 1):
+    # 修改训练策略
+    num_epochs_phase1 = 5  # 第一阶段：只训练融合层
+    num_epochs_phase2 = args.epochs - num_epochs_phase1  # 第二阶段：微调整个模型
+    
+    # 第一阶段：冻结基础模型，只训练融合层
+    model.freeze_base_models()
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs_phase1, eta_min=1e-6)
+    
+    print("Phase 1: Training fusion layers only...")
+    for epoch in range(1, num_epochs_phase1 + 1):
+        start_time = time.time()  # 记录epoch开始时间
+
+        train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
+        val_loss, accuracy, precision, recall, f1, val_auc = validate(model, val_loader, criterion, device)  # 修改 validate 以返回 val_auc
+
+        # 更新学习率
+        scheduler.step()
+
+        epoch_duration = time.time() - start_time  # 计算epoch时长
+
+        print(f"Epoch [{epoch}/{num_epochs_phase1}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
+              f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, "
+              f"F1 Score: {f1:.4f}, ROC-AUC: {val_auc:.4f}, Duration: {epoch_duration:.2f}s")
+
+        # 保存最佳模型
+        if val_auc > best_val_auc:
+            best_val_auc = val_auc
+            trigger_times = 0
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'best_val_loss': best_val_loss,
+                'best_val_auc': best_val_auc,
+                'trigger_times': trigger_times
+            }, './src/checkpoints/best_model.pth')
+            print("保存当前最佳模型 (基于 ROC-AUC)")
+        else:
+            trigger_times += 1
+            print(f"早停计数器：{trigger_times}")
+            if trigger_times >= patience:
+                print("触发早停，停止训练")
+                break
+
+        # 记录每个 epoch 的验证信息
+        with open('./src/training_log.txt', 'a') as log_file:
+            log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, "
+                           f"Accuracy={accuracy:.4f}, Precision={precision:.4f}, Recall={recall:.4f}, "
+                           f"F1 Score={f1:.4f}, ROC-AUC={val_auc:.4f}, Duration={epoch_duration:.2f}s\n")
+
+        # 保存一个检查点，以便之后恢复
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+            'best_val_loss': best_val_loss,
+            'best_val_auc': best_val_auc,
+            'trigger_times': trigger_times
+        }, f'./src/checkpoints/checkpoint_epoch_{epoch}.pth')
+
+    # 第二阶段：解冻基础模型，使用较小的学习率微调
+    print("Phase 2: Fine-tuning all layers...")
+    model.unfreeze_base_models()
+    optimizer = optim.Adam([
+        {'params': model.fusion.parameters(), 'lr': args.lr},
+        {'params': model.convnext.parameters(), 'lr': args.lr * 0.1},
+        {'params': model.efficientnet.parameters(), 'lr': args.lr * 0.1},
+        {'params': model.vit.parameters(), 'lr': args.lr * 0.1}
+    ])
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs_phase2, eta_min=1e-7)
+    
+    for epoch in range(num_epochs_phase1 + 1, args.epochs + 1):
         start_time = time.time()  # 记录epoch开始时间
 
         train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
@@ -158,6 +232,40 @@ def main():
             'best_val_auc': best_val_auc,
             'trigger_times': trigger_times
         }, f'./src/checkpoints/checkpoint_epoch_{epoch}.pth')
+
+    # 在 main() 函数开始处添加日志初始化
+    # 创建日志文件，记录训练配置
+    with open('./src/training_log.txt', 'a') as log_file:
+        log_file.write(f"\n{'='*50}\n")
+        log_file.write(f"Training started at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        log_file.write(f"Model architecture: ConvNext-Base + EfficientNet-B2 + ViT-Small\n")
+        log_file.write(f"Training parameters:\n")
+        log_file.write(f"- Batch size: {args.batch_size}\n")
+        log_file.write(f"- Learning rate: {args.lr}\n")
+        log_file.write(f"- Device: {args.device}\n")
+        log_file.write(f"- Total epochs: {args.epochs}\n")
+        log_file.write(f"- Phase 1 epochs: {num_epochs_phase1}\n")
+        log_file.write(f"- Phase 2 epochs: {num_epochs_phase2}\n")
+        log_file.write(f"Dataset information:\n")
+        log_file.write(f"- Training samples: {len(train_dataset)} (Positive: {num_train_positive}, Negative: {num_train_negative})\n")
+        log_file.write(f"- Validation samples: {len(val_dataset)} (Positive: {num_val_positive}, Negative: {num_val_negative})\n")
+        log_file.write(f"{'='*50}\n\n")
+
+    # 在每个 epoch 的日志记录中添加更多信息
+    with open('./src/training_log.txt', 'a') as log_file:
+        log_file.write(f"Epoch {epoch} ({time.strftime('%H:%M:%S')}):\n")
+        log_file.write(f"- Phase: {'Fusion training' if epoch <= num_epochs_phase1 else 'Fine-tuning'}\n")
+        log_file.write(f"- Learning rates: {[param_group['lr'] for param_group in optimizer.param_groups]}\n")
+        log_file.write(f"- Train Loss: {train_loss:.4f}\n")
+        log_file.write(f"- Val Loss: {val_loss:.4f}\n")
+        log_file.write(f"- Accuracy: {accuracy:.4f}\n")
+        log_file.write(f"- Precision: {precision:.4f}\n")
+        log_file.write(f"- Recall: {recall:.4f}\n")
+        log_file.write(f"- F1 Score: {f1:.4f}\n")
+        log_file.write(f"- ROC-AUC: {val_auc:.4f}\n")
+        log_file.write(f"- Duration: {epoch_duration:.2f}s\n")
+        log_file.write(f"- Best val AUC so far: {best_val_auc:.4f}\n")
+        log_file.write(f"- Early stopping counter: {trigger_times}/{patience}\n\n")
 
 if __name__ == '__main__':
     main()
