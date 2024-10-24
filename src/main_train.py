@@ -137,7 +137,7 @@ def main():
             else:
                 trigger_times += 1
                 print(f"早停计数器：{trigger_times}")
-                if trigger_times >= patience:
+                if trigger_times >= args.patience:  # 修改这里
                     print("触发早停，停止训练")
                     break
 
@@ -206,7 +206,7 @@ def main():
             else:
                 trigger_times += 1
                 print(f"早停计数器：{trigger_times}")
-                if trigger_times >= patience:
+                if trigger_times >= args.patience:  # 修改这里
                     print("触发早停，停止训练")
                     break
 
@@ -268,7 +268,7 @@ def main():
         log_file.write(f"- ROC-AUC: {val_auc:.4f}\n")
         log_file.write(f"- Duration: {epoch_duration:.2f}s\n")
         log_file.write(f"- Best val AUC so far: {best_val_auc:.4f}\n")
-        log_file.write(f"- Early stopping counter: {trigger_times}/{patience}\n\n")
+        log_file.write(f"- Early stopping counter: {trigger_times}/{args.patience}\n\n")
 
 if __name__ == '__main__':
     main()
