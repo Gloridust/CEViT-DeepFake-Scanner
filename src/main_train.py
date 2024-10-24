@@ -16,6 +16,7 @@ import time
 import os
 
 def main():
+    # 在 main() 函数开始处添加日志初始化
     parser = argparse.ArgumentParser(description='AI-Generated Face Detection Training')
     parser.add_argument('--data_dir', type=str, default='data/train', help='Path to training data')
     parser.add_argument('--batch_size', type=int, default=24, help='Batch size for training')
@@ -23,6 +24,7 @@ def main():
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
     parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
     parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume training')
+    parser.add_argument('--patience', type=int, default=4, help='Early stopping patience')  # 添加这行
 
     args = parser.parse_args()
 
@@ -72,59 +74,80 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=8)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
-    # 模型、损失函数和优化器
+    # 定义训练阶段
+    num_epochs_phase1 = 5  # 第一阶段：只训练融合层
+    num_epochs_phase2 = args.epochs - num_epochs_phase1  # 第二阶段：微调整个模型
+    
+    # 初始化模型
     model = FinalModel().to(device)
-
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
-
-    # 修改学习率调度器为 CosineAnnealingLR
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
-
-    # 定义早停参数
+    start_epoch = 1
     best_val_loss = np.inf
-    best_val_auc = 0.0  # 添加最佳 ROC-AUC
-    patience = 4
+    best_val_auc = 0.0
     trigger_times = 0
 
-    # 新增：加载检查点以继续训练
+    # 加载检查点
     if args.resume:
         if os.path.isfile(args.resume):
             print(f"加载检查点 '{args.resume}'")
             checkpoint = torch.load(args.resume, map_location=device)
             model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
             start_epoch = checkpoint['epoch'] + 1
-            best_val_loss = checkpoint['best_val_loss']
-            best_val_auc = checkpoint.get('best_val_auc', 0.0)  # 加载最佳 ROC-AUC
-            trigger_times = checkpoint['trigger_times']
-            print(f"检查点 '{args.resume}' (epoch {checkpoint['epoch']}) 已加载，继续训练从第 {start_epoch} 轮开始。")
-        else:
-            print(f"未找到检查点 '{args.resume}'，从头开始训练。")
-            start_epoch = 1
-    else:
-        start_epoch = 1  # 默认从第一轮开始
+            best_val_loss = checkpoint.get('best_val_loss', np.inf)
+            best_val_auc = checkpoint.get('best_val_auc', 0.0)
+            trigger_times = checkpoint.get('trigger_times', 0)
+            print(f"检查点 '{args.resume}' (epoch {checkpoint['epoch']}) 已加载")
 
-    # 开始训练
-    for epoch in range(start_epoch, args.epochs + 1):
-        start_time = time.time()  # 记录epoch开始时间
+    # 根据当前epoch确定训练阶段
+    if start_epoch <= num_epochs_phase1:
+        print("当前为第一阶段：训练特征融合层")
+        model.freeze_base_models()
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs_phase1, eta_min=1e-6)
+        
+        # 训练第一阶段剩余的epoch
+        for epoch in range(start_epoch, num_epochs_phase1 + 1):
+            start_time = time.time()  # 记录epoch开始时间
 
-        train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
-        val_loss, accuracy, precision, recall, f1, val_auc = validate(model, val_loader, criterion, device)  # 修改 validate 以返回 val_auc
+            train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
+            val_loss, accuracy, precision, recall, f1, val_auc = validate(model, val_loader, criterion, device)  # 修改 validate 以返回 val_auc
 
-        # 更新学习率
-        scheduler.step()
+            # 更新学习率
+            scheduler.step()
 
-        epoch_duration = time.time() - start_time  # 计算epoch时长
+            epoch_duration = time.time() - start_time  # 计算epoch时长
 
-        print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
-              f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, "
-              f"F1 Score: {f1:.4f}, ROC-AUC: {val_auc:.4f}, Duration: {epoch_duration:.2f}s")
+            print(f"Epoch [{epoch}/{num_epochs_phase1}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
+                  f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, "
+                  f"F1 Score: {f1:.4f}, ROC-AUC: {val_auc:.4f}, Duration: {epoch_duration:.2f}s")
 
-        # 保存最佳模型
-        if val_auc > best_val_auc:
-            best_val_auc = val_auc
-            trigger_times = 0
+            # 保存最佳模型
+            if val_auc > best_val_auc:
+                best_val_auc = val_auc
+                trigger_times = 0
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler_state_dict': scheduler.state_dict(),
+                    'best_val_loss': best_val_loss,
+                    'best_val_auc': best_val_auc,
+                    'trigger_times': trigger_times
+                }, './src/checkpoints/best_model.pth')
+                print("保存当前最佳模型 (基于 ROC-AUC)")
+            else:
+                trigger_times += 1
+                print(f"早停计数器：{trigger_times}")
+                if trigger_times >= args.patience:  # 修改这里
+                    print("触发早停，停止训练")
+                    break
+
+            # 记录每个 epoch 的验证信息
+            with open('./src/training_log.txt', 'a') as log_file:
+                log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, "
+                               f"Accuracy={accuracy:.4f}, Precision={precision:.4f}, Recall={recall:.4f}, "
+                               f"F1 Score={f1:.4f}, ROC-AUC={val_auc:.4f}, Duration={epoch_duration:.2f}s\n")
+
+            # 保存一个检查点，以便之后恢复
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
@@ -133,31 +156,119 @@ def main():
                 'best_val_loss': best_val_loss,
                 'best_val_auc': best_val_auc,
                 'trigger_times': trigger_times
-            }, './src/checkpoints/best_model.pth')
-            print("保存当前最佳模型 (基于 ROC-AUC)")
-        else:
-            trigger_times += 1
-            print(f"早停计数器：{trigger_times}")
-            if trigger_times >= patience:
-                print("触发早停，停止训练")
-                break
+            }, f'./src/checkpoints/checkpoint_epoch_{epoch}.pth')
 
-        # 记录每个 epoch 的验证信息
-        with open('./src/training_log.txt', 'a') as log_file:
-            log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, "
-                           f"Accuracy={accuracy:.4f}, Precision={precision:.4f}, Recall={recall:.4f}, "
-                           f"F1 Score={f1:.4f}, ROC-AUC={val_auc:.4f}, Duration={epoch_duration:.2f}s\n")
+        # 完成第一阶段后，自动进入第二阶段
+        start_epoch = num_epochs_phase1 + 1
+    
+    # 第二阶段：全模型微调
+    if start_epoch > num_epochs_phase1:
+        print("当前为第二阶段：微调全模型")
+        model.unfreeze_base_models()
+        optimizer = optim.Adam([
+            {'params': model.fusion.parameters(), 'lr': args.lr},
+            {'params': model.convnext.parameters(), 'lr': args.lr * 0.1},
+            {'params': model.efficientnet.parameters(), 'lr': args.lr * 0.1},
+            {'params': model.vit.parameters(), 'lr': args.lr * 0.1}
+        ])
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs_phase2, eta_min=1e-7)
+        
+        # 训练第二阶段
+        for epoch in range(start_epoch, args.epochs + 1):
+            start_time = time.time()  # 记录epoch开始时间
 
-        # 保存一个检查点，以便之后恢复
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict(),
-            'best_val_loss': best_val_loss,
-            'best_val_auc': best_val_auc,
-            'trigger_times': trigger_times
-        }, f'./src/checkpoints/checkpoint_epoch_{epoch}.pth')
+            train_loss = train(model, train_loader, criterion, optimizer, device, scaler)
+            val_loss, accuracy, precision, recall, f1, val_auc = validate(model, val_loader, criterion, device)  # 修改 validate 以返回 val_auc
+
+            # 更新学习率
+            scheduler.step()
+
+            epoch_duration = time.time() - start_time  # 计算epoch时长
+
+            print(f"Epoch [{epoch}/{args.epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
+                  f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, "
+                  f"F1 Score: {f1:.4f}, ROC-AUC: {val_auc:.4f}, Duration: {epoch_duration:.2f}s")
+
+            # 保存最佳模型
+            if val_auc > best_val_auc:
+                best_val_auc = val_auc
+                trigger_times = 0
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler_state_dict': scheduler.state_dict(),
+                    'best_val_loss': best_val_loss,
+                    'best_val_auc': best_val_auc,
+                    'trigger_times': trigger_times
+                }, './src/checkpoints/best_model.pth')
+                print("保存当前最佳模型 (基于 ROC-AUC)")
+            else:
+                trigger_times += 1
+                print(f"早停计数器：{trigger_times}")
+                if trigger_times >= args.patience:  # 修改这里
+                    print("触发早停，停止训练")
+                    break
+
+            # 记录每个 epoch 的验证信息
+            with open('./src/training_log.txt', 'a') as log_file:
+                log_file.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, "
+                               f"Accuracy={accuracy:.4f}, Precision={precision:.4f}, Recall={recall:.4f}, "
+                               f"F1 Score={f1:.4f}, ROC-AUC={val_auc:.4f}, Duration={epoch_duration:.2f}s\n")
+
+            # 保存一个检查点，以便之后恢复
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'best_val_loss': best_val_loss,
+                'best_val_auc': best_val_auc,
+                'trigger_times': trigger_times
+            }, f'./src/checkpoints/checkpoint_epoch_{epoch}.pth')
+
+    try:
+        # 尝试加载优化器状态
+        if 'optimizer_state_dict' in checkpoint and 'scheduler_state_dict' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            print("成功加载优化器和调度器状态")
+    except (ValueError, KeyError) as e:
+        print(f"警告: 无法加载优化器或调度器状态，将使用新的初始化状态。错误: {str(e)}")
+
+    # 在 main() 函数开始处添加日志初始化
+    # 创建日志文件，记录训练配置
+    with open('./src/training_log.txt', 'a') as log_file:
+        log_file.write(f"\n{'='*50}\n")
+        log_file.write(f"Training started at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        log_file.write(f"Model architecture: ConvNext-Base + EfficientNet-B2 + ViT-Small\n")
+        log_file.write(f"Training parameters:\n")
+        log_file.write(f"- Batch size: {args.batch_size}\n")
+        log_file.write(f"- Learning rate: {args.lr}\n")
+        log_file.write(f"- Device: {args.device}\n")
+        log_file.write(f"- Total epochs: {args.epochs}\n")
+        log_file.write(f"- Phase 1 epochs: {num_epochs_phase1}\n")
+        log_file.write(f"- Phase 2 epochs: {num_epochs_phase2}\n")
+        log_file.write(f"Dataset information:\n")
+        log_file.write(f"- Training samples: {len(train_dataset)} (Positive: {num_train_positive}, Negative: {num_train_negative})\n")
+        log_file.write(f"- Validation samples: {len(val_dataset)} (Positive: {num_val_positive}, Negative: {num_val_negative})\n")
+        log_file.write(f"{'='*50}\n\n")
+
+    # 在每个 epoch 的日志记录中添加更多信息
+    with open('./src/training_log.txt', 'a') as log_file:
+        log_file.write(f"Epoch {epoch} ({time.strftime('%H:%M:%S')}):\n")
+        log_file.write(f"- Phase: {'Fusion training' if epoch <= num_epochs_phase1 else 'Fine-tuning'}\n")
+        log_file.write(f"- Learning rates: {[param_group['lr'] for param_group in optimizer.param_groups]}\n")
+        log_file.write(f"- Train Loss: {train_loss:.4f}\n")
+        log_file.write(f"- Val Loss: {val_loss:.4f}\n")
+        log_file.write(f"- Accuracy: {accuracy:.4f}\n")
+        log_file.write(f"- Precision: {precision:.4f}\n")
+        log_file.write(f"- Recall: {recall:.4f}\n")
+        log_file.write(f"- F1 Score: {f1:.4f}\n")
+        log_file.write(f"- ROC-AUC: {val_auc:.4f}\n")
+        log_file.write(f"- Duration: {epoch_duration:.2f}s\n")
+        log_file.write(f"- Best val AUC so far: {best_val_auc:.4f}\n")
+        log_file.write(f"- Early stopping counter: {trigger_times}/{args.patience}\n\n")
 
 if __name__ == '__main__':
     main()
