@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps', 'cpu'], help='Device to use for training')
     parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
     parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume training')
-    parser.add_argument('--patience', type=int, default=4, help='Early stopping patience')  # 添加这行
+    parser.add_argument('--patience', type=int, default=5, help='Early stopping patience')  # 添加这行
 
     args = parser.parse_args()
 
