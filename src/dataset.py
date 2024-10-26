@@ -21,16 +21,29 @@ class FaceDataset(Dataset):
         real_dir = os.path.join(data_dir, 'real')
         fake_dir = os.path.join(data_dir, 'fake')
 
-        # 只读取合法的图片文件
-        for img_name in os.listdir(real_dir):
-            if img_name.lower().endswith(valid_image_extensions):
-                self.image_paths.append(os.path.join(real_dir, img_name))
-                self.labels.append(0)  # 真实人脸标签为0
+        # 添加容错处理
+        def add_valid_images(directory, label):
+            for img_name in os.listdir(directory):
+                if img_name.lower().endswith(valid_image_extensions):
+                    img_path = os.path.join(directory, img_name)
+                    try:
+                        # 尝试打开图片验证其有效性
+                        with Image.open(img_path) as img:
+                            img.verify()  # 验证图片完整性
+                        self.image_paths.append(img_path)
+                        self.labels.append(label)
+                    except Exception as e:
+                        print(f"警告: 跳过损坏或无法识别的图片 '{img_path}'")
+                        print(f"错误信息: {str(e)}")
+                        continue
 
-        for img_name in os.listdir(fake_dir):
-            if img_name.lower().endswith(valid_image_extensions):
-                self.image_paths.append(os.path.join(fake_dir, img_name))
-                self.labels.append(1)  # AI生成人脸标签为1
+        # 加载真实和AI生成的图片
+        add_valid_images(real_dir, 0)  # 真实人脸标签为0
+        add_valid_images(fake_dir, 1)  # AI生成人脸标签为1
+
+        print(f"成功加载图片数量: {len(self.image_paths)}")
+        print(f"真实人脸数量: {self.labels.count(0)}")
+        print(f"AI生成人脸数量: {self.labels.count(1)}")
 
         # 定义基本变换
         self.basic_transform = transforms.Compose([
@@ -65,13 +78,20 @@ class FaceDataset(Dataset):
         img_path = self.image_paths[idx]
         label = self.labels[idx]
 
-        # 打开图像并确保它是RGB模式
-        image = Image.open(img_path).convert('RGB')
-        
-        # 应用变换
-        image = self.transform(image)
-
-        # 确保标签为 long 类型的张量
-        label = torch.tensor(label, dtype=torch.long)
-
-        return image, label
+        try:
+            # 打开图像并确保它是RGB模式
+            image = Image.open(img_path).convert('RGB')
+            # 应用变换
+            image = self.transform(image)
+            # 确保标签为 long 类型的张量
+            label = torch.tensor(label, dtype=torch.long)
+            return image, label
+        except Exception as e:
+            print(f"警告: 在加载图片 '{img_path}' 时出错")
+            print(f"错误信息: {str(e)}")
+            # 随机选择一个不同的索引
+            new_idx = idx
+            while new_idx == idx:
+                new_idx = torch.randint(0, len(self), (1,)).item()
+            # 返回随机选择的图片
+            return self.__getitem__(new_idx)
