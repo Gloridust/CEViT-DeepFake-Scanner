@@ -42,13 +42,18 @@ class FaceDataset(Dataset):
         # 为训练集添加数据增强
         if train:
             self.transform = transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),           # 随机垂直翻转
-                transforms.RandomRotation(degrees=15),     # 随机旋转 ±15 度
-                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
-                transforms.RandomResizedCrop(self.target_size, scale=(0.8, 1.0)),  # 随机裁剪和缩放
-                transforms.RandomGrayscale(p=0.1),         # 以10%的概率将图像转换为灰度
-                self.basic_transform
+                transforms.RandomHorizontalFlip(),  # 随机水平翻转
+                transforms.RandomVerticalFlip(),  # 随机垂直翻转
+                transforms.RandomRotation(degrees=15),  # 随机旋转，旋转角度为15度
+                transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),  # 颜色抖动，调整亮度、对比度、饱和度和色调
+                transforms.RandomResizedCrop(self.target_size, scale=(0.8, 1.0)),  # 随机裁剪并调整大小，裁剪比例在0.8到1.0之间
+                transforms.RandomGrayscale(p=0.1),  # 随机灰度转换，概率为0.1
+                # 新增以下四种增强方法
+                transforms.RandomAdjustSharpness(sharpness_factor=2, p=0.5),  # 随机锐化，锐化因子为2，概率为0.5
+                transforms.RandomAutocontrast(p=0.5),  # 随机自动对比度，概率为0.5
+                transforms.RandomEqualize(p=0.5),  # 随机均衡化，概率为0.5
+                transforms.RandomPerspective(distortion_scale=0.3, p=0.5),  # 透视变换，失真比例为0.3，概率为0.5
+                self.basic_transform  # 基本变换
             ])
         else:
             self.transform = self.basic_transform
