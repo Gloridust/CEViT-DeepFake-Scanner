@@ -16,7 +16,7 @@ class FaceDataset(Dataset):
         self.labels = []
 
         # 支持的图像文件扩展名
-        valid_image_extensions = (".jpg", ".jpeg", ".png", ".bmp", ".tiff")
+        valid_image_extensions = (".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG", ".bmp", ".BMP", ".tiff", ".TIFF")
 
         real_dir = os.path.join(data_dir, 'real')
         fake_dir = os.path.join(data_dir, 'fake')
