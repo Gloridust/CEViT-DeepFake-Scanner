@@ -84,6 +84,9 @@ def main():
     best_val_loss = np.inf
     best_val_auc = 0.0
     trigger_times = 0
+    
+    # 初始化 checkpoint 变量，避免后面未定义的错误
+    checkpoint = None
 
     # 加载检查点
     if args.resume:
@@ -229,7 +232,7 @@ def main():
 
     try:
         # 尝试加载优化器状态
-        if 'optimizer_state_dict' in checkpoint and 'scheduler_state_dict' in checkpoint:
+        if checkpoint is not None and 'optimizer_state_dict' in checkpoint and 'scheduler_state_dict' in checkpoint:
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
             print("成功加载优化器和调度器状态")
