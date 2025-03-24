@@ -31,7 +31,7 @@ CEViT-DeepFake-Scanner 是一个基于深度学习的工具，用于检测图像
 
 1. 克隆仓库：
    ```
-   git clone https://github.com/yourusername/CEViT-DeepFake-Scanner.git
+   git clone https://github.com/Gloridust/CEViT-DeepFake-Scanner.git
    cd CEViT-DeepFake-Scanner
    ```
 
